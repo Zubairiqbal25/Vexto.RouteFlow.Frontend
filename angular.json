@@ -1,0 +1,255 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "apps",
+  "cli": {
+    "analytics": false,
+    "schematicCollections": [
+      "@schematics/angular"
+    ]
+  },
+  "schematics": {
+    "@schematics/angular:component": {
+      "style": "css",
+      "changeDetection": "OnPush"
+    }
+  },
+  "projects": {
+    "operator": {
+      "projectType": "application",
+      "root": "apps/operator",
+      "sourceRoot": "apps/operator/src",
+      "prefix": "vexto",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/operator",
+            "index": "apps/operator/src/index.html",
+            "browser": "apps/operator/src/main.ts",
+            "polyfills": [],
+            "tsConfig": "apps/operator/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "apps/operator/public"
+              }
+            ],
+            "styles": [
+              "apps/operator/src/styles.css"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1.2mb",
+                  "maximumError": "2.5mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "8kb",
+                  "maximumError": "16kb"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "port": 4200
+          },
+          "configurations": {
+            "production": {
+              "buildTarget": "operator:build:production"
+            },
+            "development": {
+              "buildTarget": "operator:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular/build:extract-i18n"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "apps/operator/tsconfig.spec.json",
+            "buildTarget": "operator:build:development",
+            "runner": "vitest",
+            "include": [
+              "**/*.spec.ts",
+              "../../../libs/**/*.spec.ts"
+            ]
+          }
+        }
+      }
+    },
+    "driver": {
+      "projectType": "application",
+      "root": "apps/driver",
+      "sourceRoot": "apps/driver/src",
+      "prefix": "vexto",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/driver",
+            "index": "apps/driver/src/index.html",
+            "browser": "apps/driver/src/main.ts",
+            "polyfills": [],
+            "tsConfig": "apps/driver/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "apps/driver/public"
+              }
+            ],
+            "styles": [
+              "apps/driver/src/styles.css"
+            ],
+            "serviceWorker": "apps/driver/ngsw-config.json"
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1.2mb",
+                  "maximumError": "2.5mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "8kb",
+                  "maximumError": "16kb"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "serviceWorker": false
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "port": 4201
+          },
+          "configurations": {
+            "production": {
+              "buildTarget": "driver:build:production"
+            },
+            "development": {
+              "buildTarget": "driver:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular/build:extract-i18n"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "apps/driver/tsconfig.spec.json",
+            "buildTarget": "driver:build:development",
+            "runner": "vitest"
+          }
+        }
+      }
+    },
+    "passenger": {
+      "projectType": "application",
+      "root": "apps/passenger",
+      "sourceRoot": "apps/passenger/src",
+      "prefix": "vexto",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/passenger",
+            "index": "apps/passenger/src/index.html",
+            "browser": "apps/passenger/src/main.ts",
+            "polyfills": [],
+            "tsConfig": "apps/passenger/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "apps/passenger/public"
+              }
+            ],
+            "styles": [
+              "apps/passenger/src/styles.css"
+            ],
+            "serviceWorker": "apps/passenger/ngsw-config.json"
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1.2mb",
+                  "maximumError": "2.5mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "8kb",
+                  "maximumError": "16kb"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "serviceWorker": false
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "port": 4202
+          },
+          "configurations": {
+            "production": {
+              "buildTarget": "passenger:build:production"
+            },
+            "development": {
+              "buildTarget": "passenger:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular/build:extract-i18n"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "apps/passenger/tsconfig.spec.json",
+            "buildTarget": "passenger:build:development",
+            "runner": "vitest"
+          }
+        }
+      }
+    }
+  }
+}

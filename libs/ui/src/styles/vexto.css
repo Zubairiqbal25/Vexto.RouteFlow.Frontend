@@ -1,0 +1,489 @@
+/* -----------------------------------------------------------------------------------------------
+ * The Vexto stylesheet. Each application imports exactly this file.
+ *
+ * Layering, in order:
+ *   1. tokens      — the only place a raw colour or size is written down.
+ *   2. @theme      — republishes the tokens as Tailwind utilities, so `bg-surface` and
+ *                    `text-ink-muted` mean the same thing in every app.
+ *   3. base        — element defaults.
+ *   4. components  — the handful of primitives (button, field, table, badge) that would otherwise
+ *                    be retyped as a dozen utility classes in every feature template.
+ * --------------------------------------------------------------------------------------------- */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap")
+layer(base);
+
+@import "tailwindcss";
+@import "tailwindcss-primeui";
+@import "./vexto-tokens.css";
+
+@theme inline {
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-primary: var(--vexto-primary);
+  --color-primary-hover: var(--vexto-primary-hover);
+  --color-primary-soft: var(--vexto-primary-soft);
+  --color-accent: var(--vexto-accent);
+
+  --color-bg: var(--vexto-bg);
+  --color-surface: var(--vexto-surface);
+  --color-surface-muted: var(--vexto-surface-muted);
+  --color-surface-hover: var(--vexto-surface-hover);
+
+  --color-nav: var(--vexto-nav-bg);
+  --color-nav-raised: var(--vexto-nav-bg-raised);
+
+  --color-line: var(--vexto-border);
+  --color-line-strong: var(--vexto-border-strong);
+  --color-line-subtle: var(--vexto-border-subtle);
+
+  --color-ink: var(--vexto-text-primary);
+  --color-ink-secondary: var(--vexto-text-secondary);
+  --color-ink-muted: var(--vexto-text-muted);
+
+  --color-success: var(--vexto-success);
+  --color-warning: var(--vexto-warning);
+  --color-danger: var(--vexto-danger);
+  --color-info: var(--vexto-info);
+
+  --radius-card: var(--vexto-radius-xl);
+  --radius-control: var(--vexto-radius-md);
+
+  --shadow-card: var(--vexto-shadow-sm);
+  --shadow-raised: var(--vexto-shadow-md);
+  --shadow-pop: var(--vexto-shadow-lg);
+
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1rem;
+  --text-label--letter-spacing: 0.04em;
+  --text-meta: 0.75rem;
+  --text-meta--line-height: 1.125rem;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.25rem;
+}
+
+/* 3. Base ------------------------------------------------------------------------------------- */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--vexto-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--vexto-bg);
+    color: var(--vexto-text-primary);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    color: var(--vexto-text-primary);
+    font-weight: 600;
+    letter-spacing: -0.014em;
+    margin: 0;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--vexto-primary);
+    outline-offset: 2px;
+  }
+}
+
+/* 4. Components ------------------------------------------------------------------------------- */
+@layer components {
+  /* Surfaces --------------------------------------------------------------------------------- */
+  .vx-card {
+    background: var(--vexto-surface);
+    border: 1px solid var(--vexto-border);
+    border-radius: var(--vexto-radius-xl);
+    box-shadow: var(--vexto-shadow-xs);
+  }
+
+  .vx-card-pad {
+    padding: var(--vexto-space-5);
+  }
+
+  @media (min-width: 640px) {
+    .vx-card-pad {
+      padding: var(--vexto-space-6);
+    }
+  }
+
+  .vx-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--vexto-space-4);
+    padding: var(--vexto-space-5) var(--vexto-space-6);
+    border-bottom: 1px solid var(--vexto-border-subtle);
+  }
+
+  .vx-card-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--vexto-text-primary);
+  }
+
+  .vx-section-label {
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--vexto-text-muted);
+  }
+
+  /* Buttons ---------------------------------------------------------------------------------- */
+  .vx-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--vexto-space-2);
+    height: 2.375rem;
+    padding-inline: var(--vexto-space-4);
+    border-radius: var(--vexto-radius-md);
+    border: 1px solid transparent;
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background-color var(--vexto-transition), border-color var(--vexto-transition),
+      color var(--vexto-transition), box-shadow var(--vexto-transition);
+  }
+
+  .vx-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .vx-btn-primary {
+    background: var(--vexto-primary);
+    color: var(--vexto-primary-contrast);
+    box-shadow: var(--vexto-shadow-xs);
+  }
+
+  .vx-btn-primary:hover:not(:disabled) {
+    background: var(--vexto-primary-hover);
+  }
+
+  .vx-btn-secondary {
+    background: var(--vexto-surface);
+    border-color: var(--vexto-border-strong);
+    color: var(--vexto-text-secondary);
+    box-shadow: var(--vexto-shadow-xs);
+  }
+
+  .vx-btn-secondary:hover:not(:disabled) {
+    background: var(--vexto-surface-hover);
+    color: var(--vexto-text-primary);
+  }
+
+  .vx-btn-ghost {
+    background: transparent;
+    color: var(--vexto-text-secondary);
+  }
+
+  .vx-btn-ghost:hover:not(:disabled) {
+    background: var(--vexto-surface-hover);
+    color: var(--vexto-text-primary);
+  }
+
+  .vx-btn-danger {
+    background: var(--vexto-danger);
+    color: #fff;
+  }
+
+  .vx-btn-danger:hover:not(:disabled) {
+    filter: brightness(0.93);
+  }
+
+  .vx-btn-sm {
+    height: 2rem;
+    padding-inline: var(--vexto-space-3);
+    font-size: 0.8125rem;
+  }
+
+  .vx-btn-lg {
+    height: 3rem;
+    padding-inline: var(--vexto-space-6);
+    font-size: 0.9375rem;
+  }
+
+  /* The driver app runs on a tablet held at arm length in a moving vehicle. */
+  .vx-btn-touch {
+    min-height: 3.5rem;
+    padding-inline: var(--vexto-space-6);
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: var(--vexto-radius-lg);
+  }
+
+  .vx-btn-icon {
+    width: 2.375rem;
+    padding-inline: 0;
+  }
+
+  /* Forms ------------------------------------------------------------------------------------ */
+  .vx-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--vexto-space-2);
+  }
+
+  .vx-label {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--vexto-text-secondary);
+  }
+
+  .vx-required::after {
+    content: "*";
+    color: var(--vexto-danger);
+    margin-inline-start: 2px;
+  }
+
+  .vx-input,
+  .vx-select,
+  .vx-textarea {
+    width: 100%;
+    min-height: 2.375rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--vexto-surface);
+    border: 1px solid var(--vexto-border-strong);
+    border-radius: var(--vexto-radius-md);
+    color: var(--vexto-text-primary);
+    font: inherit;
+    transition: border-color var(--vexto-transition), box-shadow var(--vexto-transition);
+  }
+
+  .vx-input::placeholder,
+  .vx-textarea::placeholder {
+    color: var(--vexto-text-muted);
+  }
+
+  .vx-input:focus,
+  .vx-select:focus,
+  .vx-textarea:focus {
+    outline: none;
+    border-color: var(--vexto-primary);
+    box-shadow: var(--vexto-focus-ring);
+  }
+
+  .vx-input[aria-invalid="true"],
+  .vx-select[aria-invalid="true"],
+  .vx-textarea[aria-invalid="true"] {
+    border-color: var(--vexto-danger);
+  }
+
+  .vx-help {
+    font-size: 0.75rem;
+    line-height: 1.125rem;
+    color: var(--vexto-text-muted);
+  }
+
+  .vx-error {
+    font-size: 0.75rem;
+    line-height: 1.125rem;
+    color: var(--vexto-danger-text);
+  }
+
+  /* A form is a stack of titled sections, never one undifferentiated column of inputs. */
+  .vx-form-section {
+    display: grid;
+    gap: var(--vexto-space-5);
+    padding-block: var(--vexto-space-6);
+    border-top: 1px solid var(--vexto-border-subtle);
+  }
+
+  .vx-form-section:first-of-type {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .vx-form-grid {
+    display: grid;
+    gap: var(--vexto-space-4) var(--vexto-space-5);
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 640px) {
+    .vx-form-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .vx-form-grid > .vx-span-2 {
+    grid-column: 1 / -1;
+  }
+
+  /* Tables ----------------------------------------------------------------------------------- */
+  .vx-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .vx-table thead th {
+    background: var(--vexto-surface-muted);
+    padding: 0.6875rem 1.25rem;
+    text-align: start;
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--vexto-text-muted);
+    border-bottom: 1px solid var(--vexto-border);
+    white-space: nowrap;
+  }
+
+  .vx-table tbody td {
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid var(--vexto-border-subtle);
+    color: var(--vexto-text-secondary);
+    vertical-align: middle;
+  }
+
+  .vx-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .vx-table tbody tr:hover td {
+    background: var(--vexto-surface-muted);
+  }
+
+  .vx-cell-strong {
+    color: var(--vexto-text-primary);
+    font-weight: 500;
+  }
+
+  .vx-table-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  /* Badges ----------------------------------------------------------------------------------- */
+  .vx-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.1875rem 0.5rem;
+    border-radius: var(--vexto-radius-pill);
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .vx-badge-dot {
+    width: 0.4375rem;
+    height: 0.4375rem;
+    border-radius: 999px;
+    background: currentColor;
+    flex: none;
+  }
+
+  .vx-tone-success { background: var(--vexto-success-soft); color: var(--vexto-success-text); }
+  .vx-tone-warning { background: var(--vexto-warning-soft); color: var(--vexto-warning-text); }
+  .vx-tone-danger  { background: var(--vexto-danger-soft);  color: var(--vexto-danger-text); }
+  .vx-tone-info    { background: var(--vexto-info-soft);    color: var(--vexto-info-text); }
+  .vx-tone-neutral { background: var(--vexto-neutral-soft); color: var(--vexto-neutral-text); }
+  .vx-tone-primary { background: var(--vexto-primary-50);   color: var(--vexto-primary-active); }
+
+  /* Avatar ----------------------------------------------------------------------------------- */
+  .vx-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 999px;
+    background: var(--vexto-primary-50);
+    color: var(--vexto-primary-active);
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex: none;
+    text-transform: uppercase;
+  }
+
+  /* Skeletons -------------------------------------------------------------------------------- */
+  .vx-skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--vexto-surface-hover) 25%,
+      #edf0f4 37%,
+      var(--vexto-surface-hover) 63%
+    );
+    background-size: 400% 100%;
+    border-radius: var(--vexto-radius-sm);
+    animation: vx-shimmer 1.3s ease-in-out infinite;
+  }
+
+  @keyframes vx-shimmer {
+    from { background-position: 100% 50%; }
+    to { background-position: 0 50%; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .vx-skeleton { animation: none; }
+  }
+
+  /* Navigation ------------------------------------------------------------------------------- */
+  .vx-nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--vexto-space-3);
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--vexto-radius-md);
+    color: var(--vexto-nav-text);
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color var(--vexto-transition), color var(--vexto-transition);
+  }
+
+  .vx-nav-item:hover {
+    background: var(--vexto-nav-item-hover);
+    color: var(--vexto-nav-text-strong);
+  }
+
+  .vx-nav-item-active {
+    background: var(--vexto-nav-item-active);
+    color: #fff;
+  }
+
+  .vx-nav-item-active .vx-nav-icon {
+    color: var(--vexto-primary-300);
+  }
+
+  .vx-nav-icon {
+    flex: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--vexto-nav-section);
+  }
+
+  /* Utility ---------------------------------------------------------------------------------- */
+  .vx-no-scrollbar::-webkit-scrollbar { display: none; }
+  .vx-no-scrollbar { scrollbar-width: none; }
+
+  .vx-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  .vx-scroll::-webkit-scrollbar-thumb {
+    background: var(--vexto-border-strong);
+    border-radius: 999px;
+  }
+}

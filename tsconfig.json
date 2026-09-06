@@ -1,0 +1,61 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": false,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "moduleResolution": "bundler",
+    "importHelpers": true,
+    "target": "ES2022",
+    "module": "preserve",
+    "lib": [
+      "ES2022",
+      "dom"
+    ],
+    "paths": {
+      "@vexto/api-client": [
+        "./libs/api-client/src/index.ts"
+      ],
+      "@vexto/auth": [
+        "./libs/auth/src/index.ts"
+      ],
+      "@vexto/permissions": [
+        "./libs/permissions/src/index.ts"
+      ],
+      "@vexto/ui": [
+        "./libs/ui/src/index.ts"
+      ],
+      "@vexto/layouts": [
+        "./libs/layouts/src/index.ts"
+      ],
+      "@vexto/models": [
+        "./libs/models/src/index.ts"
+      ],
+      "@vexto/signalr": [
+        "./libs/signalr/src/index.ts"
+      ],
+      "@vexto/maps": [
+        "./libs/maps/src/index.ts"
+      ],
+      "@vexto/utilities": [
+        "./libs/utilities/src/index.ts"
+      ]
+    }
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "typeCheckHostBindings": true,
+    "strictTemplates": true
+  }
+}

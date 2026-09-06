@@ -1,0 +1,120 @@
+/* -----------------------------------------------------------------------------------------------
+ * Vexto design tokens.
+ *
+ * Every visual value in the product comes from here. A feature component that needs a colour, a
+ * radius or a shadow reads a token; it does not invent one. The scales are deliberately short —
+ * a palette with three greys is easier to keep consistent than one with eleven.
+ *
+ * Dark mode is not a milestone requirement, but the token layer is structured so that redefining
+ * the surface/text/border group under `.vexto-dark` is all it would take.
+ * --------------------------------------------------------------------------------------------- */
+
+:root {
+  /* Brand ------------------------------------------------------------------------------------ */
+  --vexto-primary-25: #f2fbfa;
+  --vexto-primary-50: #e6f7f5;
+  --vexto-primary-100: #c9efeb;
+  --vexto-primary-200: #96e0d9;
+  --vexto-primary-300: #5ecabf;
+  --vexto-primary-400: #2eaea2;
+  --vexto-primary: #0f8f85;
+  --vexto-primary-hover: #0c766e;
+  --vexto-primary-active: #095e58;
+  --vexto-primary-contrast: #ffffff;
+  --vexto-primary-soft: var(--vexto-primary-50);
+
+  --vexto-accent: #4f46e5;
+  --vexto-accent-soft: #eef2ff;
+
+  /* Surfaces --------------------------------------------------------------------------------- */
+  --vexto-bg: #f6f8fa;
+  --vexto-surface: #ffffff;
+  --vexto-surface-raised: #ffffff;
+  --vexto-surface-muted: #f9fafb;
+  --vexto-surface-hover: #f3f5f7;
+  --vexto-overlay: rgb(12 20 33 / 45%);
+
+  /* The navigation shell is intentionally dark: it separates chrome from content at a glance and
+     is the single strongest piece of Vexto's visual identity. */
+  --vexto-nav-bg: #0d1626;
+  --vexto-nav-bg-raised: #131f33;
+  --vexto-nav-border: #1e2c42;
+  --vexto-nav-text: #94a3b8;
+  --vexto-nav-text-strong: #e2e8f0;
+  --vexto-nav-item-hover: #17253c;
+  --vexto-nav-item-active: rgb(15 143 133 / 18%);
+  --vexto-nav-section: #64748b;
+
+  /* Borders ---------------------------------------------------------------------------------- */
+  --vexto-border: #e3e8ee;
+  --vexto-border-strong: #cbd3dd;
+  --vexto-border-subtle: #eef1f5;
+
+  /* Text ------------------------------------------------------------------------------------- */
+  --vexto-text-primary: #101828;
+  --vexto-text-secondary: #475467;
+  --vexto-text-muted: #7b8794;
+  --vexto-text-inverse: #ffffff;
+
+  /* Status ----------------------------------------------------------------------------------- */
+  --vexto-success: #0e9f6e;
+  --vexto-success-soft: #e7f7f0;
+  --vexto-success-text: #06694a;
+
+  --vexto-warning: #d97706;
+  --vexto-warning-soft: #fdf3e4;
+  --vexto-warning-text: #92500a;
+
+  --vexto-danger: #dc2626;
+  --vexto-danger-soft: #fdeced;
+  --vexto-danger-text: #99181b;
+
+  --vexto-info: #2563eb;
+  --vexto-info-soft: #e9f0fe;
+  --vexto-info-text: #1a44a8;
+
+  --vexto-neutral: #64748b;
+  --vexto-neutral-soft: #f1f3f6;
+  --vexto-neutral-text: #414d5e;
+
+  /* Spacing scale (4px base) ----------------------------------------------------------------- */
+  --vexto-space-1: 0.25rem;
+  --vexto-space-2: 0.5rem;
+  --vexto-space-3: 0.75rem;
+  --vexto-space-4: 1rem;
+  --vexto-space-5: 1.25rem;
+  --vexto-space-6: 1.5rem;
+  --vexto-space-8: 2rem;
+  --vexto-space-10: 2.5rem;
+  --vexto-space-12: 3rem;
+
+  /* Radius ----------------------------------------------------------------------------------- */
+  --vexto-radius-sm: 6px;
+  --vexto-radius-md: 8px;
+  --vexto-radius-lg: 12px;
+  --vexto-radius-xl: 16px;
+  --vexto-radius-pill: 999px;
+
+  /* Elevation -------------------------------------------------------------------------------- */
+  --vexto-shadow-xs: 0 1px 2px 0 rgb(16 24 40 / 5%);
+  --vexto-shadow-sm: 0 1px 3px 0 rgb(16 24 40 / 8%), 0 1px 2px -1px rgb(16 24 40 / 6%);
+  --vexto-shadow-md: 0 4px 8px -2px rgb(16 24 40 / 8%), 0 2px 4px -2px rgb(16 24 40 / 5%);
+  --vexto-shadow-lg: 0 12px 20px -6px rgb(16 24 40 / 10%), 0 4px 8px -4px rgb(16 24 40 / 5%);
+  --vexto-shadow-xl: 0 24px 40px -8px rgb(16 24 40 / 14%);
+  --vexto-focus-ring: 0 0 0 4px rgb(15 143 133 / 16%);
+
+  /* Layout ----------------------------------------------------------------------------------- */
+  --vexto-sidebar-width: 268px;
+  --vexto-sidebar-width-collapsed: 76px;
+  --vexto-topbar-height: 64px;
+  --vexto-content-max: 1600px;
+
+  /* Motion ----------------------------------------------------------------------------------- */
+  --vexto-transition: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --vexto-transition: 0ms;
+  }
+}
