@@ -176,6 +176,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/invitations/{token}/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Says whether an invitation link is still usable, without redeeming it. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    token: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvitationValidationResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/invitations/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Redeems an invitation by setting the account password. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AcceptInvitationCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AcceptInvitationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -219,7 +297,7 @@ export interface paths {
             };
         };
         put?: never;
-        /** Creates a user in the caller's tenant. */
+        /** Creates a user with a password chosen by the administrator. Superseded by the invitation flow; kept for callers that have not moved over yet. */
         post: {
             parameters: {
                 query?: never;
@@ -308,6 +386,82 @@ export interface paths {
             };
         };
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates a user and issues a one-shot invitation for them to set their own password. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InviteUserCommand"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InviteUserResultResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/users/invitations/{invitationId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraws an outstanding invitation. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    invitationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -598,6 +752,66 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the caller's own tenant settings. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantSettingsResponse"];
+                    };
+                };
+            };
+        };
+        /** Replaces the caller's own tenant settings. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateTenantSettingsCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantSettingsResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -956,6 +1170,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/passengers/picker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Searches passengers for a form control. Returns a small, bounded list. */
+        get: {
+            parameters: {
+                query?: {
+                    search?: string;
+                    pageSize?: number | string;
+                    includeInactive?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PickerOption"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/passengers/{passengerId}": {
         parameters: {
             query?: never;
@@ -1203,6 +1457,144 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/passengers/{passengerId}/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether this passenger has been invited, and whether the link still works. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    passengerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerInvitationStatusResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Invites a passenger to the app. They set their own password. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    passengerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InvitePassengerRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerInvitationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passengers/{passengerId}/invite/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends the invitation link again, replacing any outstanding one. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    passengerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerInvitationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passengers/{passengerId}/invite/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraws an outstanding invitation. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    passengerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/passengers/{passengerId}/create-user": {
         parameters: {
             query?: never;
@@ -1212,7 +1604,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Gives a passenger an application login for self-service. */
+        /** Legacy. Gives a passenger a login with an administrator-chosen password. Use /invite. */
         post: {
             parameters: {
                 query?: never;
@@ -1314,6 +1706,46 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vehicles/picker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Searches vehicles for a form control. Returns a small, bounded list. */
+        get: {
+            parameters: {
+                query?: {
+                    search?: string;
+                    pageSize?: number | string;
+                    includeUnavailable?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PickerOption"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1573,6 +2005,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/drivers/picker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Searches drivers for a form control. Returns a small, bounded list. */
+        get: {
+            parameters: {
+                query?: {
+                    search?: string;
+                    pageSize?: number | string;
+                    includeInactive?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PickerOption"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/drivers/{driverId}": {
         parameters: {
             query?: never;
@@ -1751,6 +2223,144 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/drivers/{driverId}/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether this driver has been invited, and whether the link still works. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    driverId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DriverInvitationStatusResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Invites a driver to the app. They set their own password. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    driverId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InviteDriverRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DriverInvitationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/drivers/{driverId}/invite/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends the invitation link again, replacing any outstanding one. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    driverId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DriverInvitationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/drivers/{driverId}/invite/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraws an outstanding invitation. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    driverId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/drivers/{driverId}/create-user": {
         parameters: {
             query?: never;
@@ -1760,7 +2370,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Gives a driver an application login. */
+        /** Legacy. Gives a driver a login with an administrator-chosen password. Use /invite. */
         post: {
             parameters: {
                 query?: never;
@@ -1800,7 +2410,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Lists the tenant's routes. */
+        /** Lists the tenant routes, each with its stop, passenger and schedule counts. */
         get: {
             parameters: {
                 query?: {
@@ -1822,7 +2432,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["PagedResultOfRouteResponse"];
+                        "application/json": components["schemas"]["PagedResultOfRouteListItemResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -1862,6 +2472,46 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/routes/picker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Searches routes for a form control. Returns a small, bounded list. */
+        get: {
+            parameters: {
+                query?: {
+                    search?: string;
+                    pageSize?: number | string;
+                    includeInactive?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PickerOption"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1925,6 +2575,44 @@ export interface paths {
                 };
             };
         };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/routes/{routeId}/map-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the route stops in order with the road path through them, for drawing on a map. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    routeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RouteMapPreviewResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -2625,6 +3313,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
+                    search?: string;
                     serviceDate?: string;
                     fromDate?: string;
                     toDate?: string;
@@ -3104,6 +3793,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/driver/me/trips/{tripId}/next-stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The next stop with passengers still expected, and who is waiting there. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DriverNextStopResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/driver/me/trips/{tripId}/start": {
         parameters: {
             query?: never;
@@ -3412,6 +4139,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/passenger/me/trips/{tripId}/eta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** When the bus is expected at the passenger's own stop, if it is being tracked. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerEtaResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/passenger/me/absences": {
         parameters: {
             query?: never;
@@ -3680,10 +4445,1365 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/trips/{tripId}/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Substitutes the driver and vehicle on one upcoming trip, leaving the route roster alone. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChangeTripResourcesRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TripResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/tenants/{tenantId}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Puts a transport operator on a Vexto plan, or moves them to a different one. Platform administrators only. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AssignTenantPlanCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AssignedPlanResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open invoices, outstanding amount, collected this month and failed payments, aggregated in the database. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BillingSummaryResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Counts the tenant operation as it stands today: people, fleet, trips, tracking, attendance. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DashboardSummaryResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the signed-in user's own notifications, newest first. */
+        get: {
+            parameters: {
+                query?: {
+                    unreadOnly?: boolean;
+                    pageNumber?: number | string;
+                    pageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PagedResultOfNotificationResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How many unread notifications the signed-in user has. For a badge. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UnreadNotificationCountResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{notificationId}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marks one of the user's own notifications as read. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    notificationId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Marks every unread notification of the user as read. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationsReadResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/push-devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the devices the signed-in user has registered. Never returns a token. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PushDeviceResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Registers or refreshes a device for push notifications. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RegisterPushDeviceCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PushDeviceResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/push-devices/{deviceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Stops sending push notifications to one of the user's own devices. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    deviceId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the transport subscriptions this operator bills passengers for. */
+        get: {
+            parameters: {
+                query?: {
+                    passengerId?: string;
+                    routeId?: string;
+                    status?: components["schemas"]["PassengerSubscriptionStatus"];
+                    search?: string;
+                    pageNumber?: number | string;
+                    pageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PagedResultOfPassengerSubscriptionResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Creates a transport subscription for a passenger. Created as a draft: it bills nothing until it is activated. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreatePassengerSubscriptionCommand"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerSubscriptionResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger-subscriptions/{subscriptionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One transport subscription. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    subscriptionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerSubscriptionResponse"];
+                    };
+                };
+            };
+        };
+        /** Changes the commercial terms. Invoices already raised keep the amount they were raised with. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    subscriptionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdatePassengerSubscriptionBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerSubscriptionResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger-subscriptions/{subscriptionId}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Puts the subscription in force, so invoices can be raised against it. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    subscriptionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger-subscriptions/{subscriptionId}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suspends billing without ending the arrangement. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    subscriptionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger-subscriptions/{subscriptionId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ends the arrangement. Invoices already raised are untouched — cancelling does not forgive money already owed. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    subscriptionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger-subscriptions/{subscriptionId}/generate-invoice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Raises the invoice for one billing period. Idempotent: asking twice for the same period returns the invoice that already exists rather than billing twice. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    subscriptionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GenerateInvoiceBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerInvoiceResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger-invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists invoices raised against this operator's passengers. */
+        get: {
+            parameters: {
+                query?: {
+                    passengerId?: string;
+                    status?: components["schemas"]["PassengerInvoiceStatus"];
+                    fromDate?: string;
+                    toDate?: string;
+                    search?: string;
+                    pageNumber?: number | string;
+                    pageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PagedResultOfPassengerInvoiceResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger-invoices/{invoiceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One invoice, with its lines. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    invoiceId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerInvoiceResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger-invoices/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Raises invoices for every active subscription in one billing period. Idempotent: subscriptions already invoiced for the period are skipped, not billed twice. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GeneratePassengerInvoiceBatchCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GeneratePassengerInvoiceBatchResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger-invoices/{invoiceId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraws an unpaid invoice. A paid one must be refunded instead — cancelling it would simply lose the money. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    invoiceId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** This operator's own Vexto plan and how much of it they are using. Over-limit is reported, never enforced. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantSubscriptionResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payment-account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** This operator's payment account and whether it can take payments yet. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaymentAccountResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Creates this operator's account with the payment provider. Takes no body: every field comes from the tenant record, and the provider account id is never client-supplied. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaymentAccountResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payment-account/onboarding-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** A one-time link to the provider so the operator can finish onboarding. Short-lived, and never stored. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["OnboardingLinkRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OnboardingLinkResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payment-account/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Asks the provider for the current account state and caches it. For when an account.updated webhook was missed. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaymentAccountResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payment-account/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Platform fee, who bears the processing fee, and whether passengers may pay online. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantPaymentSettingsResponse"];
+                    };
+                };
+            };
+        };
+        /** Changes the payment configuration. The platform fee defaults to none. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateTenantPaymentSettingsCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantPaymentSettingsResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Payments taken by this operator. Provider fee and net amount are blank until the provider reports them — they are never estimated. */
+        get: {
+            parameters: {
+                query?: {
+                    passengerId?: string;
+                    invoiceId?: string;
+                    status?: components["schemas"]["PaymentStatus"];
+                    fromDate?: string;
+                    toDate?: string;
+                    search?: string;
+                    pageNumber?: number | string;
+                    pageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PagedResultOfPaymentResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/{paymentId}/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The refunds recorded against one payment. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    paymentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RefundResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/payments/{paymentId}/refund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Returns money to the passenger. Omit the amount for a full refund. Never more than the amount still refundable. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    paymentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RefundRequestBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RefundResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger/me/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in passenger's own invoices. Never anybody else's. */
+        get: {
+            parameters: {
+                query?: {
+                    status?: components["schemas"]["PassengerInvoiceStatus"];
+                    pageNumber?: number | string;
+                    pageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PagedResultOfPassengerInvoiceResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger/me/invoices/{invoiceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One of the passenger's own invoices, with its lines. Another passenger's invoice reports as not found: its existence is not theirs to learn. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    invoiceId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerInvoiceResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger/me/invoices/{invoiceId}/payment-intent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Starts paying one of the passenger's own invoices. Takes no body: the amount is read from the invoice on the server. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    invoiceId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaymentIntentResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger/me/payments/{paymentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The authoritative state of one of the passenger's own payments. Polled while the provider confirms — the browser is never believed about the outcome. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    paymentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PaymentResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AcceptInvitationCommand: {
+            token: string;
+            password: string;
+        };
+        AcceptInvitationResponse: {
+            email: string;
+        };
         ActivateAgreementRequest: {
             /** Format: date */
             signedDate: null | string;
@@ -3757,6 +5877,10 @@ export interface components {
         };
         /** @enum {unknown} */
         AgreementType: "OperatorSubscription" | "CustomerTransport" | "CorporateTransport" | "Other";
+        AssignedPlanResponse: {
+            /** Format: uuid */
+            subscriptionId: string;
+        };
         AssignPassengerRequest: {
             /** Format: uuid */
             passengerId: string;
@@ -3777,6 +5901,15 @@ export interface components {
             effectiveFrom: string;
             /** Format: date */
             effectiveTo: null | string;
+        };
+        AssignTenantPlanCommand: {
+            planCode: string;
+            billingCycle: components["schemas"]["BillingCycle"];
+            /** Format: double */
+            price: null | number | string;
+            status: null | components["schemas"]["SubscriptionStatus"];
+            /** Format: date */
+            startDate: null | string;
         };
         AuthenticatedUserResponse: {
             /** Format: uuid */
@@ -3800,6 +5933,25 @@ export interface components {
             /** Format: date-time */
             refreshTokenExpiresAtUtc: string;
             user: components["schemas"]["AuthenticatedUserResponse"];
+        };
+        /** @enum {unknown} */
+        BillingCycle: "Monthly" | "Yearly";
+        BillingSummaryResponse: {
+            /** Format: int32 */
+            openInvoiceCount: number | string;
+            /** Format: double */
+            outstandingAmount: number | string;
+            /** Format: double */
+            collectedThisMonth: number | string;
+            /** Format: int32 */
+            failedPaymentCount: number | string;
+            currency: string;
+        };
+        ChangeTripResourcesRequest: {
+            /** Format: uuid */
+            driverId: string;
+            /** Format: uuid */
+            vehicleId: string;
         };
         CreateAgreementCommand: {
             agreementNumber: string;
@@ -3833,6 +5985,26 @@ export interface components {
             mobileNumber: string;
             email: null | string;
             notes: null | string;
+        };
+        CreatePassengerSubscriptionCommand: {
+            /** Format: uuid */
+            passengerId: string;
+            /** Format: uuid */
+            routeId: null | string;
+            description: string;
+            /** Format: double */
+            amount: number | string;
+            currency: null | string;
+            /** Format: double */
+            taxRate: null | number | string;
+            billingCycle: components["schemas"]["PassengerBillingCycle"];
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate: null | string;
+            autoRenew: boolean;
+            /** Format: int32 */
+            billingDay: null | number | string;
         };
         CreatePassengerUserRequest: {
             email: string;
@@ -3890,6 +6062,51 @@ export interface components {
             /** Format: int32 */
             capacity: number | string;
         };
+        DashboardAttendanceResponse: {
+            /** Format: int32 */
+            expected: number | string;
+            /** Format: int32 */
+            boarded: number | string;
+            /** Format: int32 */
+            noShow: number | string;
+            /** Format: int32 */
+            skipped: number | string;
+        };
+        DashboardSummaryResponse: {
+            /** Format: date */
+            serviceDate: string;
+            /** Format: int32 */
+            activePassengers: number | string;
+            /** Format: int32 */
+            activeDrivers: number | string;
+            /** Format: int32 */
+            activeVehicles: number | string;
+            /** Format: int32 */
+            activeRoutes: number | string;
+            today: components["schemas"]["DashboardTodayResponse"];
+            tracking: components["schemas"]["DashboardTrackingResponse"];
+            attendance: components["schemas"]["DashboardAttendanceResponse"];
+        };
+        DashboardTodayResponse: {
+            /** Format: int32 */
+            scheduledTrips: number | string;
+            /** Format: int32 */
+            readyTrips: number | string;
+            /** Format: int32 */
+            startedTrips: number | string;
+            /** Format: int32 */
+            completedTrips: number | string;
+            /** Format: int32 */
+            cancelledTrips: number | string;
+        };
+        DashboardTrackingResponse: {
+            /** Format: int32 */
+            liveVehicles: number | string;
+            /** Format: int32 */
+            staleVehicles: number | string;
+            /** Format: int32 */
+            offlineVehicles: number | string;
+        };
         /** @enum {unknown} */
         DayOfWeek: "Sunday" | "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday";
         DeclareAbsenceRequest: {
@@ -3905,6 +6122,51 @@ export interface components {
             /** Format: uuid */
             routeId: null | string;
             reason: null | string;
+        };
+        DriverInvitationResponse: {
+            /** Format: uuid */
+            driverId: string;
+            /** Format: uuid */
+            userId: string;
+            email: string;
+            accountStatus: string;
+            /** Format: date-time */
+            invitationExpiresAtUtc: null | string;
+            acceptUrl: null | string;
+        };
+        DriverInvitationStatusResponse: {
+            /** Format: uuid */
+            driverId: string;
+            /** Format: uuid */
+            userId: null | string;
+            email: null | string;
+            accountStatus: string;
+            /** Format: date-time */
+            invitationExpiresAtUtc: null | string;
+        };
+        DriverNextStopDetailResponse: {
+            /** Format: uuid */
+            stopId: string;
+            /** Format: int32 */
+            sequence: null | number | string;
+            name: null | string;
+            /** Format: double */
+            latitude: null | number | string;
+            /** Format: double */
+            longitude: null | number | string;
+            expectedPassengers: components["schemas"]["DriverNextStopPassengerResponse"][];
+        };
+        DriverNextStopPassengerResponse: {
+            /** Format: uuid */
+            tripPassengerId: string;
+            /** Format: uuid */
+            passengerId: string;
+            name: string;
+            status: string;
+        };
+        DriverNextStopResponse: {
+            tripStatus: string;
+            stop: null | components["schemas"]["DriverNextStopDetailResponse"];
         };
         DriverResponse: {
             /** Format: uuid */
@@ -3958,6 +6220,31 @@ export interface components {
         };
         /** @enum {unknown} */
         Emirate: "AbuDhabi" | "Dubai" | "Sharjah" | "Ajman" | "UmmAlQuwain" | "RasAlKhaimah" | "Fujairah" | null;
+        GenerateInvoiceBody: {
+            /** Format: date */
+            periodStart: string;
+            /** Format: date */
+            periodEnd: string;
+            /** Format: date */
+            dueDate: string;
+        };
+        GeneratePassengerInvoiceBatchCommand: {
+            /** Format: date */
+            periodStart: string;
+            /** Format: date */
+            periodEnd: string;
+            /** Format: date */
+            dueDate: string;
+            /** Format: uuid */
+            routeId: null | string;
+        };
+        GeneratePassengerInvoiceBatchResponse: {
+            /** Format: int32 */
+            created: number | string;
+            /** Format: int32 */
+            skipped: number | string;
+            invoices: components["schemas"]["PassengerInvoiceResponse"][];
+        };
         GenerateTripsRequest: {
             /** Format: date */
             fromDate: string;
@@ -3987,12 +6274,62 @@ export interface components {
         };
         /** Format: binary */
         IFormFile: string;
+        InvitationValidationResponse: {
+            isValid: boolean;
+            email: null | string;
+            fullName: null | string;
+            /** Format: date-time */
+            expiresAtUtc: null | string;
+        };
+        InviteDriverRequest: {
+            email: string;
+        };
+        InvitePassengerRequest: {
+            email: string;
+        };
+        InviteUserCommand: {
+            email: string;
+            firstName: string;
+            lastName: string;
+            phoneNumber: null | string;
+            roles: string[];
+        };
+        InviteUserResultResponse: {
+            user: components["schemas"]["UserResponse"];
+            invitation: components["schemas"]["UserInvitationResponse"];
+        };
         LoginCommand: {
             email: string;
             password: string;
         };
         LogoutCommand: {
             refreshToken: string;
+        };
+        NotificationResponse: {
+            /** Format: uuid */
+            id: string;
+            type: string;
+            title: string;
+            message: string;
+            dataJson: null | string;
+            status: string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            readAtUtc: null | string;
+        };
+        NotificationsReadResponse: {
+            /** Format: int32 */
+            markedRead: number | string;
+        };
+        OnboardingLinkRequest: {
+            returnUrl: string;
+            refreshUrl: string;
+        };
+        OnboardingLinkResponse: {
+            url: string;
+            /** Format: date-time */
+            expiresAtUtc: null | string;
         };
         PagedResultOfAgreementResponse: {
             items: components["schemas"]["AgreementResponse"][];
@@ -4027,8 +6364,41 @@ export interface components {
             /** Format: int32 */
             totalPages?: number | string;
         };
+        PagedResultOfNotificationResponse: {
+            items: components["schemas"]["NotificationResponse"][];
+            /** Format: int32 */
+            pageNumber: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: number | string;
+            /** Format: int32 */
+            totalPages?: number | string;
+        };
+        PagedResultOfPassengerInvoiceResponse: {
+            items: components["schemas"]["PassengerInvoiceResponse"][];
+            /** Format: int32 */
+            pageNumber: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: number | string;
+            /** Format: int32 */
+            totalPages?: number | string;
+        };
         PagedResultOfPassengerResponse: {
             items: components["schemas"]["PassengerResponse"][];
+            /** Format: int32 */
+            pageNumber: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: number | string;
+            /** Format: int32 */
+            totalPages?: number | string;
+        };
+        PagedResultOfPassengerSubscriptionResponse: {
+            items: components["schemas"]["PassengerSubscriptionResponse"][];
             /** Format: int32 */
             pageNumber: number | string;
             /** Format: int32 */
@@ -4049,8 +6419,19 @@ export interface components {
             /** Format: int32 */
             totalPages?: number | string;
         };
-        PagedResultOfRouteResponse: {
-            items: components["schemas"]["RouteResponse"][];
+        PagedResultOfPaymentResponse: {
+            items: components["schemas"]["PaymentResponse"][];
+            /** Format: int32 */
+            pageNumber: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: number | string;
+            /** Format: int32 */
+            totalPages?: number | string;
+        };
+        PagedResultOfRouteListItemResponse: {
+            items: components["schemas"]["RouteListItemResponse"][];
             /** Format: int32 */
             pageNumber: number | string;
             /** Format: int32 */
@@ -4125,6 +6506,89 @@ export interface components {
             /** Format: int32 */
             tripsAffected: number | string;
         };
+        /** @enum {unknown} */
+        PassengerBillingCycle: "Monthly" | "Weekly" | "Custom";
+        PassengerEtaResponse: {
+            /** Format: uuid */
+            tripId: string;
+            status: string;
+            trackingStatus: string;
+            /** Format: date-time */
+            estimatedPickupAtUtc: null | string;
+            /** Format: int32 */
+            minutesAway: null | number | string;
+            /** Format: int32 */
+            distanceMeters: null | number | string;
+            /** Format: date-time */
+            calculatedAtUtc: null | string;
+        };
+        PassengerInvitationResponse: {
+            /** Format: uuid */
+            passengerId: string;
+            /** Format: uuid */
+            userId: string;
+            email: string;
+            accountStatus: string;
+            /** Format: date-time */
+            invitationExpiresAtUtc: null | string;
+            acceptUrl: null | string;
+        };
+        PassengerInvitationStatusResponse: {
+            /** Format: uuid */
+            passengerId: string;
+            /** Format: uuid */
+            userId: null | string;
+            email: null | string;
+            accountStatus: string;
+            /** Format: date-time */
+            invitationExpiresAtUtc: null | string;
+        };
+        PassengerInvoiceItemResponse: {
+            /** Format: uuid */
+            id: string;
+            description: string;
+            /** Format: double */
+            quantity: number | string;
+            /** Format: double */
+            unitPrice: number | string;
+            /** Format: double */
+            amount: number | string;
+            /** Format: double */
+            taxRate: number | string;
+            /** Format: double */
+            taxAmount: number | string;
+        };
+        PassengerInvoiceResponse: {
+            /** Format: uuid */
+            id: string;
+            invoiceNumber: string;
+            /** Format: uuid */
+            passengerId: string;
+            passengerName: string;
+            /** Format: uuid */
+            passengerSubscriptionId: null | string;
+            /** Format: date */
+            periodStart: string;
+            /** Format: date */
+            periodEnd: string;
+            /** Format: double */
+            subtotal: number | string;
+            /** Format: double */
+            taxAmount: number | string;
+            /** Format: double */
+            total: number | string;
+            /** Format: double */
+            refundedAmount: number | string;
+            currency: string;
+            status: string;
+            /** Format: date */
+            dueDate: string;
+            /** Format: date-time */
+            paidAtUtc: null | string;
+            items: components["schemas"]["PassengerInvoiceItemResponse"][];
+        };
+        /** @enum {unknown} */
+        PassengerInvoiceStatus: "Draft" | "Open" | "Paid" | "Overdue" | "Cancelled" | "Refunded" | "PartiallyRefunded" | null;
         PassengerProfileResponse: {
             /** Format: uuid */
             id: string;
@@ -4145,6 +6609,33 @@ export interface components {
             /** Format: date-time */
             updatedAtUtc: null | string;
         };
+        PassengerSubscriptionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            passengerId: string;
+            passengerName: string;
+            /** Format: uuid */
+            routeId: null | string;
+            routeName: null | string;
+            description: string;
+            /** Format: double */
+            amount: number | string;
+            currency: string;
+            /** Format: double */
+            taxRate: number | string;
+            billingCycle: string;
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate: null | string;
+            status: string;
+            autoRenew: boolean;
+            /** Format: int32 */
+            billingDay: null | number | string;
+        };
+        /** @enum {unknown} */
+        PassengerSubscriptionStatus: "Draft" | "Active" | "Paused" | "Cancelled" | "Expired" | null;
         PassengerTripResponse: {
             /** Format: uuid */
             tripId: string;
@@ -4165,6 +6656,82 @@ export interface components {
             userId: string;
             email: string;
         };
+        PaymentAccountResponse: {
+            isConnected: boolean;
+            status: string;
+            chargesEnabled: boolean;
+            payoutsEnabled: boolean;
+            detailsSubmitted: boolean;
+            onlinePaymentsEnabled: boolean;
+            provider: null | string;
+            providerAccountId: null | string;
+            /** Format: date-time */
+            stateRefreshedAtUtc: null | string;
+        };
+        PaymentIntentResponse: {
+            /** Format: uuid */
+            paymentId: string;
+            /** Format: uuid */
+            invoiceId: string;
+            invoiceNumber: string;
+            /** Format: double */
+            amount: number | string;
+            currency: string;
+            status: string;
+            provider: string;
+            clientSecret: null | string;
+        };
+        PaymentResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            passengerId: string;
+            passengerName: string;
+            /** Format: uuid */
+            invoiceId: string;
+            provider: string;
+            providerReference: string;
+            /** Format: double */
+            amount: number | string;
+            currency: string;
+            /** Format: double */
+            platformFee: null | number | string;
+            /** Format: double */
+            providerFee: null | number | string;
+            /** Format: double */
+            netAmount: null | number | string;
+            /** Format: double */
+            refundedAmount: number | string;
+            status: string;
+            failureCode: null | string;
+            /** Format: date-time */
+            paidAtUtc: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+        };
+        /** @enum {unknown} */
+        PaymentStatus: "Pending" | "RequiresAction" | "Succeeded" | "Failed" | "Cancelled" | "Refunded" | "PartiallyRefunded" | null;
+        PickerOption: {
+            /** Format: uuid */
+            id: string;
+            label: string;
+            secondaryLabel: null | string;
+        };
+        PlanUsage: {
+            /** Format: int32 */
+            activeVehicles: number | string;
+            /** Format: int32 */
+            includedVehicles: number | string;
+            /** Format: int32 */
+            activePassengers: number | string;
+            /** Format: int32 */
+            includedPassengers: number | string;
+            status: string;
+        };
+        /** @enum {unknown} */
+        PlatformFeeType: "None" | "Fixed" | "Percentage";
+        /** @enum {unknown} */
+        ProcessingFeePayer: "Operator" | "Passenger";
         PublishTripLocationRequest: {
             /** Format: double */
             latitude: number | string;
@@ -4179,6 +6746,16 @@ export interface components {
             /** Format: date-time */
             recordedAtUtc: string;
         };
+        PushDeviceResponse: {
+            /** Format: uuid */
+            id: string;
+            platform: string;
+            label: null | string;
+            tokenFingerprint: string;
+            /** Format: date-time */
+            lastSeenAtUtc: string;
+            isActive: boolean;
+        };
         RecordTripLocationResponse: {
             /** Format: uuid */
             tripId: string;
@@ -4191,6 +6768,29 @@ export interface components {
         RefreshSessionCommand: {
             refreshToken: string;
         };
+        RefundRequestBody: {
+            /** Format: double */
+            amount: null | number | string;
+            reason: null | string;
+        };
+        RefundResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            paymentId: string;
+            /** Format: double */
+            amount: number | string;
+            currency: string;
+            status: string;
+            reason: null | string;
+            /** Format: date-time */
+            completedAtUtc: null | string;
+        };
+        RegisterPushDeviceCommand: {
+            deviceToken: string;
+            platform: string;
+            label: null | string;
+        };
         /** @enum {unknown} */
         RouteAssignmentType: "Regular" | "Temporary";
         RouteDetailResponse: {
@@ -4199,6 +6799,42 @@ export interface components {
         };
         /** @enum {unknown} */
         RouteDirection: "Outbound" | "Return" | "Circular" | "Other";
+        RouteListItemResponse: {
+            route: components["schemas"]["RouteResponse"];
+            /** Format: int32 */
+            stopCount: number | string;
+            /** Format: int32 */
+            activePassengerCount: number | string;
+            /** Format: int32 */
+            scheduleCount: number | string;
+            /** Format: uuid */
+            currentDriverId: null | string;
+            currentDriverName: null | string;
+            /** Format: uuid */
+            currentVehicleId: null | string;
+            currentVehiclePlateNumber: null | string;
+        };
+        RouteMapPreviewResponse: {
+            /** Format: uuid */
+            routeId: string;
+            stops: components["schemas"]["RouteMapPreviewStopResponse"][];
+            polyline: null | string;
+            /** Format: int32 */
+            distanceMeters: null | number | string;
+            /** Format: int32 */
+            durationSeconds: null | number | string;
+        };
+        RouteMapPreviewStopResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            sequence: number | string;
+            name: string;
+            /** Format: double */
+            latitude: number | string;
+            /** Format: double */
+            longitude: number | string;
+        };
         RoutePassengerAssignmentResponse: {
             /** Format: uuid */
             id: string;
@@ -4307,11 +6943,20 @@ export interface components {
             /** Format: int32 */
             currentVehicleCapacity: null | number | string;
         };
+        /** @enum {unknown} */
+        SubscriptionStatus: "Trial" | "Active" | "PastDue" | "Cancelled" | "Expired" | null;
         TenantDetailResponse: {
             tenant: components["schemas"]["TenantResponse"];
             settings: components["schemas"]["TenantSettingsResponse"];
             /** Format: int32 */
             memberCount: number | string;
+        };
+        TenantPaymentSettingsResponse: {
+            platformFeeType: components["schemas"]["PlatformFeeType"];
+            /** Format: double */
+            platformFeeValue: number | string;
+            whoPaysProcessingFee: components["schemas"]["ProcessingFeePayer"];
+            onlinePaymentsEnabled: boolean;
         };
         TenantResponse: {
             /** Format: uuid */
@@ -4334,6 +6979,26 @@ export interface components {
             defaultCurrency: string;
             dateFormat: string;
             language: string;
+        };
+        TenantSubscriptionResponse: {
+            /** Format: uuid */
+            id: null | string;
+            /** Format: uuid */
+            planId: null | string;
+            planCode: null | string;
+            planName: null | string;
+            status: string;
+            /** Format: date */
+            startDate: null | string;
+            /** Format: date */
+            endDate: null | string;
+            /** Format: date-time */
+            trialEndsAtUtc: null | string;
+            billingCycle: null | string;
+            /** Format: double */
+            price: null | number | string;
+            currency: null | string;
+            usage: components["schemas"]["PlanUsage"];
         };
         TerminateAgreementRequest: {
             reason: null | string;
@@ -4469,6 +7134,10 @@ export interface components {
             id: string;
             plateNumber: string;
         };
+        UnreadNotificationCountResponse: {
+            /** Format: int32 */
+            unreadCount: number | string;
+        };
         UpdateAgreementCommand: {
             /** Format: uuid */
             agreementId: string;
@@ -4512,6 +7181,19 @@ export interface components {
             email: null | string;
             notes: null | string;
         };
+        UpdatePassengerSubscriptionBody: {
+            description: string;
+            /** Format: double */
+            amount: number | string;
+            /** Format: double */
+            taxRate: null | number | string;
+            billingCycle: components["schemas"]["PassengerBillingCycle"];
+            /** Format: date */
+            endDate: null | string;
+            autoRenew: boolean;
+            /** Format: int32 */
+            billingDay: null | number | string;
+        };
         UpdateRouteCommand: {
             /** Format: uuid */
             routeId: string;
@@ -4547,6 +7229,19 @@ export interface components {
             phone: null | string;
             website: null | string;
         };
+        UpdateTenantPaymentSettingsCommand: {
+            platformFeeType: components["schemas"]["PlatformFeeType"];
+            /** Format: double */
+            platformFeeValue: number | string;
+            whoPaysProcessingFee: components["schemas"]["ProcessingFeePayer"];
+            onlinePaymentsEnabled: boolean;
+        };
+        UpdateTenantSettingsCommand: {
+            timeZone: string;
+            defaultCurrency: string;
+            dateFormat: string;
+            language: string;
+        };
         UpdateUserCommand: {
             /** Format: uuid */
             userId: string;
@@ -4567,6 +7262,16 @@ export interface components {
             year: null | number | string;
             /** Format: int32 */
             capacity: number | string;
+        };
+        UserInvitationResponse: {
+            /** Format: uuid */
+            invitationId: string;
+            /** Format: uuid */
+            userId: string;
+            email: string;
+            /** Format: date-time */
+            expiresAtUtc: string;
+            acceptUrl: null | string;
         };
         UserResponse: {
             /** Format: uuid */

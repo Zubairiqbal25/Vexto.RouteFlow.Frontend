@@ -142,6 +142,7 @@ const EMIRATES: readonly NonNullable<Emirate>[] = [
         type="submit"
         footer
         form="vehicle-form"
+        (click)="submit()"
         class="vx-btn vx-btn-primary"
         [disabled]="busy()"
       >

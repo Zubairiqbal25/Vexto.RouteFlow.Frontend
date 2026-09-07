@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { RoutesApi } from '@vexto/api-client';
-import type { RouteResponse } from '@vexto/models';
+import type { RouteListItem, RouteResponse } from '@vexto/models';
 import { CanDirective, VextoPermissions } from '@vexto/permissions';
 import {
   VxEmptyState,
@@ -26,8 +26,10 @@ interface RouteFilters extends Record<string, unknown> {
  * Routes are the spine of the product, so this list opens straight into the detail page on click
  * rather than hiding it behind a row menu.
  *
- * Stop and passenger counts live on the detail response, not the list response, so they are not
- * shown here — fetching them per row would be exactly the N+1 the dashboard rules forbid.
+ * Stop, passenger and schedule counts, and whoever is rostered today, come down on the list row
+ * itself. That is what answers "which of my routes has no driver" without opening every one of
+ * them — the backend computes them in a fixed number of queries per page, so nothing here scales
+ * with the number of rows.
  */
 @Component({
   selector: 'vexto-routes-page',
@@ -102,7 +104,7 @@ interface RouteFilters extends Record<string, unknown> {
         </span>
       </vx-filter-bar>
 
-      <vx-skeleton-table loading [columns]="5" />
+      <vx-skeleton-table loading [columns]="8" />
 
       <vx-error-state
         error
@@ -131,32 +133,47 @@ interface RouteFilters extends Record<string, unknown> {
             <th scope="col">Route name</th>
             <th scope="col">Direction</th>
             <th scope="col">Default start</th>
+            <th scope="col" class="text-right">Stops</th>
+            <th scope="col" class="text-right">Passengers</th>
+            <th scope="col">Rostered</th>
             <th scope="col">Status</th>
           </tr>
         </thead>
         <tbody>
-          @for (route of list.items(); track route.id) {
-            <tr class="cursor-pointer" (click)="open(route)">
+          @for (row of list.items(); track row.route.id) {
+            <tr class="cursor-pointer" (click)="open(row.route)">
               <td>
                 <a
                   class="vx-cell-strong hover:underline"
-                  [routerLink]="['/routes', route.id]"
+                  [routerLink]="['/routes', row.route.id]"
                   (click)="$event.stopPropagation()"
                 >
-                  {{ route.code }}
+                  {{ row.route.code }}
                 </a>
               </td>
               <td>
-                <span class="block text-ink-secondary">{{ route.name }}</span>
-                @if (route.description) {
+                <span class="block text-ink-secondary">{{ row.route.name }}</span>
+                @if (row.route.description) {
                   <span class="block truncate text-meta text-ink-muted">
-                    {{ route.description }}
+                    {{ row.route.description }}
                   </span>
                 }
               </td>
-              <td>{{ route.direction }}</td>
-              <td>{{ startTime(route) }}</td>
-              <td><vx-status-badge [status]="route.status" /></td>
+              <td>{{ row.route.direction }}</td>
+              <td>{{ startTime(row.route) }}</td>
+              <td class="text-right tabular-nums">{{ row.stopCount }}</td>
+              <td class="text-right tabular-nums">{{ row.activePassengerCount }}</td>
+              <td>
+                @if (row.currentDriverName) {
+                  <span class="block truncate">{{ row.currentDriverName }}</span>
+                  <span class="block text-meta text-ink-muted">
+                    {{ row.currentVehiclePlateNumber ?? 'No vehicle' }}
+                  </span>
+                } @else {
+                  <span class="text-ink-muted">Unassigned</span>
+                }
+              </td>
+              <td><vx-status-badge [status]="row.route.status" /></td>
             </tr>
           }
         </tbody>
@@ -178,7 +195,7 @@ export class RoutesPage {
   protected readonly manage = VextoPermissions.Routes.Manage;
   protected readonly formOpen = signal(false);
 
-  protected readonly list = new PagedList<RouteResponse, RouteFilters>(
+  protected readonly list = new PagedList<RouteListItem, RouteFilters>(
     (filters, page, pageSize) =>
       this.api.list({
         search: filters.search || undefined,

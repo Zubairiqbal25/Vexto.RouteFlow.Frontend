@@ -11,6 +11,32 @@ export type LocationState =
   | 'denied' // the driver refused permission
   | 'unsupported';
 
+/** A fix older than this is not believable as "when the device saw the vehicle here". */
+const MaximumFixAgeMilliseconds = 24 * 60 * 60 * 1000;
+
+/**
+ * When the device says it took this fix, in epoch milliseconds.
+ *
+ * `GeolocationPosition.timestamp` is specified as epoch milliseconds, and Chrome and Firefox
+ * report it that way. **WebKit reports microseconds**, which is a thousand-fold error: a fix taken
+ * today arrives as the year 58653, the ISO string carries an expanded year, and the API rejects
+ * the whole body as unparsable. Drivers run this app on iPads, so on the one platform that matters
+ * most every position publish failed.
+ *
+ * Rather than special-casing WebKit — the quirk may be fixed, and other engines may acquire their
+ * own — the value is simply checked for plausibility: a fix is from the recent past, never from
+ * the future, and if it is neither then the device clock is the better answer. The publisher runs
+ * seconds after the fix, so falling back costs almost nothing in accuracy.
+ */
+function fixTakenAt(fix: GeolocationPosition): number {
+  const now = Date.now();
+  const reported = fix.timestamp;
+  const plausible =
+    Number.isFinite(reported) && reported <= now && now - reported <= MaximumFixAgeMilliseconds;
+
+  return plausible ? reported : now;
+}
+
 /**
  * Publishes the vehicle's position while a trip is running.
  *
@@ -132,7 +158,7 @@ export class LocationPublisher {
           // The browser reports metres per second; the API takes km/h.
           speedKph: fix.coords.speed === null ? null : fix.coords.speed * 3.6,
           headingDegrees: fix.coords.heading,
-          recordedAtUtc: new Date(fix.timestamp).toISOString(),
+          recordedAtUtc: new Date(fixTakenAt(fix)).toISOString(),
         }),
       );
 

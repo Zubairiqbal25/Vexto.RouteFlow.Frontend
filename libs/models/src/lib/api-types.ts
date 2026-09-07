@@ -51,6 +51,56 @@ export type UserResponse = Schema<'UserResponse'>;
 export type CreateUserCommand = Schema<'CreateUserCommand'>;
 export type UpdateUserCommand = Schema<'UpdateUserCommand'>;
 
+/** The operator's own settings, as opposed to the platform view of any tenant's. */
+export type TenantSettings = Schema<'TenantSettingsResponse'>;
+export type UpdateTenantSettingsCommand = Schema<'UpdateTenantSettingsCommand'>;
+
+/* Invitations --------------------------------------------------------------------------------- */
+export type InviteUserCommand = Schema<'InviteUserCommand'>;
+export type InviteUserResult = Schema<'InviteUserResultResponse'>;
+export type UserInvitation = Schema<'UserInvitationResponse'>;
+export type InvitationValidation = Schema<'InvitationValidationResponse'>;
+export type AcceptInvitationCommand = Schema<'AcceptInvitationCommand'>;
+
+/** Passenger and driver invitations. One flow, one acceptance page, two entry points. */
+export type PassengerInvitation = Schema<'PassengerInvitationResponse'>;
+export type PassengerInvitationStatus = Schema<'PassengerInvitationStatusResponse'>;
+export type DriverInvitation = Schema<'DriverInvitationResponse'>;
+export type DriverInvitationStatus = Schema<'DriverInvitationStatusResponse'>;
+
+/**
+ * Where an account has got to on the way from invited to signing in. Derived on the server from
+ * the account status plus whether a link is still live, so a client never has to work it out.
+ */
+export type AccountStatus =
+  | 'NotInvited'
+  | 'InvitationPending'
+  | 'InvitationExpired'
+  | 'Active'
+  | 'Suspended';
+
+/* Push devices -------------------------------------------------------------------------------- */
+export type PushDevice = Schema<'PushDeviceResponse'>;
+export type RegisterPushDeviceCommand = Schema<'RegisterPushDeviceCommand'>;
+
+/* Dashboard ----------------------------------------------------------------------------------- */
+export type DashboardSummary = Schema<'DashboardSummaryResponse'>;
+export type DashboardToday = Schema<'DashboardTodayResponse'>;
+export type DashboardTracking = Schema<'DashboardTrackingResponse'>;
+export type DashboardAttendance = Schema<'DashboardAttendanceResponse'>;
+
+/**
+ * One choice in a picker. Three fields on purpose — see the backend type: a picker is read by
+ * anyone who may assign the thing, which is a wider audience than the one allowed to read the
+ * record behind it.
+ */
+export type PickerOption = Schema<'PickerOption'>;
+
+/* Notifications ------------------------------------------------------------------------------- */
+export type NotificationItem = Schema<'NotificationResponse'>;
+export type UnreadNotificationCount = Schema<'UnreadNotificationCountResponse'>;
+export type NotificationsRead = Schema<'NotificationsReadResponse'>;
+
 /* Agreements ---------------------------------------------------------------------------------- */
 export type AgreementResponse = Schema<'AgreementResponse'>;
 export type AgreementDetailResponse = Schema<'AgreementDetailResponse'>;
@@ -87,6 +137,11 @@ export type Emirate = Schema<'Emirate'>;
 /* Routes -------------------------------------------------------------------------------------- */
 export type RouteResponse = Schema<'RouteResponse'>;
 export type RouteDetailResponse = Schema<'RouteDetailResponse'>;
+
+/** A route list row: the route plus the counts a planner reads without opening it. */
+export type RouteListItem = Schema<'RouteListItemResponse'>;
+export type RouteMapPreview = Schema<'RouteMapPreviewResponse'>;
+export type RouteMapPreviewStop = Schema<'RouteMapPreviewStopResponse'>;
 export type RouteSummary = Schema<'RouteSummaryResponse'>;
 export type CreateRouteCommand = Schema<'CreateRouteCommand'>;
 export type UpdateRouteCommand = Schema<'UpdateRouteCommand'>;
@@ -114,6 +169,9 @@ export type TripDetailResponse = Schema<'TripDetailResponse'>;
 export type TripPassenger = Schema<'TripPassengerResponse'>;
 export type TripAttendance = Schema<'TripAttendanceResponse'>;
 export type TripAttendanceSummary = Schema<'TripAttendanceSummaryResponse'>;
+export type ChangeTripResourcesRequest = Schema<'ChangeTripResourcesRequest'>;
+export type DriverNextStop = Schema<'DriverNextStopResponse'>;
+export type DriverNextStopDetail = Schema<'DriverNextStopDetailResponse'>;
 
 /* Tracking ------------------------------------------------------------------------------------ */
 export type TripLocation = Schema<'TripLocationResponse'>;
@@ -123,5 +181,54 @@ export type ActiveFleetTrip = Schema<'ActiveFleetTripResponse'>;
 export type PublishTripLocationRequest = Schema<'PublishTripLocationRequest'>;
 export type RecordTripLocationResponse = Schema<'RecordTripLocationResponse'>;
 
+/**
+ * A passenger's arrival estimate. Everything below `status` is null unless the status is
+ * `Available` — a bus that is not reporting produces no number at all rather than a guess.
+ */
+export type PassengerEta = Schema<'PassengerEtaResponse'>;
+
 /* Problem details ----------------------------------------------------------------------------- */
 export type ValidationProblem = Schema<'HttpValidationProblemDetails'>;
+
+/* Passenger billing ---------------------------------------------------------------------------- */
+/*
+ * What a passenger owes their transport operator. Not to be confused with the Vexto subscription
+ * types further down: that is what the operator owes Vexto, and the two are deliberately separate
+ * all the way from the database to here.
+ */
+export type PassengerSubscription = Schema<'PassengerSubscriptionResponse'>;
+export type PassengerSubscriptionStatus = Schema<'PassengerSubscriptionStatus'>;
+export type PassengerBillingCycle = Schema<'PassengerBillingCycle'>;
+export type CreatePassengerSubscriptionRequest = Schema<'CreatePassengerSubscriptionCommand'>;
+export type UpdatePassengerSubscriptionRequest = Schema<'UpdatePassengerSubscriptionBody'>;
+
+export type PassengerInvoice = Schema<'PassengerInvoiceResponse'>;
+export type PassengerInvoiceItem = Schema<'PassengerInvoiceItemResponse'>;
+export type PassengerInvoiceStatus = Schema<'PassengerInvoiceStatus'>;
+export type GenerateInvoiceRequest = Schema<'GenerateInvoiceBody'>;
+export type GenerateInvoiceBatchRequest = Schema<'GeneratePassengerInvoiceBatchCommand'>;
+export type GenerateInvoiceBatchResponse = Schema<'GeneratePassengerInvoiceBatchResponse'>;
+
+export type BillingSummary = Schema<'BillingSummaryResponse'>;
+
+/* Payments ------------------------------------------------------------------------------------- */
+export type PaymentAccount = Schema<'PaymentAccountResponse'>;
+export type TenantPaymentSettings = Schema<'TenantPaymentSettingsResponse'>;
+export type UpdateTenantPaymentSettingsRequest = Schema<'UpdateTenantPaymentSettingsCommand'>;
+
+/**
+ * What the browser needs to open the provider's payment sheet.
+ *
+ * `clientSecret` authorises confirming this one payment for this one amount. It is not a secret
+ * key and is safe in a browser — but it must never be logged, and it is never persisted.
+ */
+export type PaymentIntent = Schema<'PaymentIntentResponse'>;
+export type Payment = Schema<'PaymentResponse'>;
+export type PaymentStatus = Schema<'PaymentStatus'>;
+export type PaymentRefund = Schema<'RefundResponse'>;
+export type RefundRequest = Schema<'RefundRequestBody'>;
+
+/* Vexto SaaS subscription ---------------------------------------------------------------------- */
+/* What the transport operator owes Vexto. The other kind of billing entirely. */
+export type TenantSubscription = Schema<'TenantSubscriptionResponse'>;
+export type PlanUsage = Schema<'PlanUsage'>;

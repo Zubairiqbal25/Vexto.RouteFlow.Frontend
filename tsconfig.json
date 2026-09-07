@@ -46,6 +46,12 @@
       "@vexto/maps": [
         "./libs/maps/src/index.ts"
       ],
+      "@vexto/payments": [
+        "./libs/payments/src/index.ts"
+      ],
+      "@vexto/push": [
+        "./libs/push/src/index.ts"
+      ],
       "@vexto/utilities": [
         "./libs/utilities/src/index.ts"
       ]

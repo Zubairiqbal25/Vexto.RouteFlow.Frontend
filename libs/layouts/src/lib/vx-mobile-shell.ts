@@ -3,6 +3,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService, AuthStore } from '@vexto/auth';
 import { VxConfirmHost, VxIcon, VxToastHost } from '@vexto/ui';
 import type { NavItem } from './navigation';
+import { VxNotificationBell } from './vx-notification-bell';
 
 /**
  * The shell for the driver and passenger apps.
@@ -16,7 +17,15 @@ import type { NavItem } from './navigation';
 @Component({
   selector: 'vx-mobile-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, VxIcon, VxToastHost, VxConfirmHost],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    VxIcon,
+    VxNotificationBell,
+    VxToastHost,
+    VxConfirmHost,
+  ],
   template: `
     <div class="flex min-h-dvh flex-col bg-bg">
       <header
@@ -32,6 +41,13 @@ import type { NavItem } from './navigation';
           <p class="truncate text-[0.9375rem] font-semibold leading-tight">{{ title() }}</p>
           <p class="truncate text-meta" style="color: var(--vexto-nav-text)">{{ subtitle() }}</p>
         </div>
+        <!--
+          The same bell as the operator portal. Every notification route resolves its recipient
+          from the token, so a driver and a passenger each read exactly their own — which is why
+          this belongs in the shell rather than being built twice inside two apps.
+        -->
+        <vx-notification-bell tone="onDark" />
+
         <button
           type="button"
           class="flex size-10 flex-none items-center justify-center rounded-lg"

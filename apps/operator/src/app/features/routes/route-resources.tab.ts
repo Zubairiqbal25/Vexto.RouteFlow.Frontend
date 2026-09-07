@@ -199,6 +199,7 @@ import { formatDate } from '@vexto/utilities';
         type="submit"
         footer
         form="assign-resources-form"
+        (click)="save()"
         class="vx-btn vx-btn-primary"
         [disabled]="saving()"
       >

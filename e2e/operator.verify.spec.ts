@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { accounts, isoDate, signIn } from './fixtures';
+import { accounts, isoDate, publishDriverPosition, routeCode, signIn } from './fixtures';
 
 /**
  * The operator sees what the driver did.
@@ -14,6 +14,10 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('shows the running vehicle on Live Fleet', async ({ page }) => {
+  // As in the passenger journey: the driver's browser is closed by now, so a current position has
+  // to come over the driver's own API for "on the road" to mean anything.
+  await publishDriverPosition();
+
   await page.goto('/live-fleet');
 
   await expect(page.getByRole('heading', { name: 'Live Fleet' })).toBeVisible();
@@ -28,7 +32,18 @@ test('shows the trip as started, with attendance recorded', async ({ page }) => 
   await page.goto('/trips');
   await page.getByLabel('Service date').fill(isoDate(0));
 
-  const started = page.getByRole('row').filter({ hasText: 'Started' }).first();
+  // Searched for, not scanned for: a pilot database keeps every previous run's trips and this
+  // one is well past the first page by now. The search box is debounced, so the row count is
+  // what says the filter has actually been applied.
+  await page.getByLabel('Search trips').fill(routeCode);
+  await expect(page.locator('tbody tr')).toHaveCount(1);
+
+  const started = page
+    .locator('tbody')
+    .getByRole('row')
+    .filter({ hasText: routeCode })
+    .filter({ hasText: 'Started' })
+    .first();
   await expect(started).toBeVisible({ timeout: 20_000 });
   await started.click();
 

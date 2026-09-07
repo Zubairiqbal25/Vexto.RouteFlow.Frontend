@@ -7,8 +7,19 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { TrackingApi, TripsApi, VextoApiError } from '@vexto/api-client';
-import type { TripAttendance, TripDetailResponse, TripLocation } from '@vexto/models';
+import {
+  DriversApi,
+  TrackingApi,
+  TripsApi,
+  VehiclesApi,
+  VextoApiError,
+} from '@vexto/api-client';
+import type {
+  PickerOption,
+  TripAttendance,
+  TripDetailResponse,
+  TripLocation,
+} from '@vexto/models';
 import { CanDirective, PermissionService, VextoPermissions } from '@vexto/permissions';
 import {
   ConfirmService,
@@ -64,6 +75,9 @@ import { formatDate, formatRelative, formatTime, secondsSince } from '@vexto/uti
                     <vx-icon name="check" [size]="16" />
                     Mark ready
                   </button>
+                  <button type="button" class="vx-btn vx-btn-secondary" (click)="openCrew()">
+                    Change crew
+                  </button>
                   <button type="button" class="vx-btn vx-btn-secondary" (click)="cancel()">
                     Cancel trip
                   </button>
@@ -71,6 +85,9 @@ import { formatDate, formatRelative, formatTime, secondsSince } from '@vexto/uti
                 @case ('Ready') {
                   <button type="button" class="vx-btn vx-btn-primary" (click)="start()">
                     Start trip
+                  </button>
+                  <button type="button" class="vx-btn vx-btn-secondary" (click)="openCrew()">
+                    Change crew
                   </button>
                   <button type="button" class="vx-btn vx-btn-secondary" (click)="cancel()">
                     Cancel trip
@@ -86,6 +103,77 @@ import { formatDate, formatRelative, formatTime, secondsSince } from '@vexto/uti
           }
         </ng-container>
       </vx-page-header>
+
+      @if (crewOpen()) {
+        <section class="vx-card vx-card-pad mb-6">
+          <h2 class="text-body font-semibold text-ink">Change crew for this trip</h2>
+          <p class="mt-1 text-meta text-ink-muted">
+            Covers a sick driver or a bus in the workshop. This trip only — the route roster is
+            left as it is, so every other trip keeps the driver it was planned with.
+          </p>
+
+          <form class="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2" (submit)="saveCrew($event)">
+            <label class="block">
+              <span class="vx-section-label">Driver</span>
+              <select
+                class="vx-select mt-1 w-full"
+                aria-label="Substitute driver"
+                [value]="crewDriverId()"
+                (change)="crewDriverId.set(value($event))"
+              >
+                <option value="">Choose a driver</option>
+                @for (option of driverOptions(); track option.id) {
+                  <option [value]="option.id">
+                    {{ option.label }}
+                    @if (option.secondaryLabel) {
+                      · {{ option.secondaryLabel }}
+                    }
+                  </option>
+                }
+              </select>
+            </label>
+
+            <label class="block">
+              <span class="vx-section-label">Vehicle</span>
+              <select
+                class="vx-select mt-1 w-full"
+                aria-label="Substitute vehicle"
+                [value]="crewVehicleId()"
+                (change)="crewVehicleId.set(value($event))"
+              >
+                <option value="">Choose a vehicle</option>
+                @for (option of vehicleOptions(); track option.id) {
+                  <option [value]="option.id">
+                    {{ option.label }}
+                    @if (option.secondaryLabel) {
+                      · {{ option.secondaryLabel }}
+                    }
+                  </option>
+                }
+              </select>
+            </label>
+
+            <div class="sm:col-span-2 flex flex-wrap gap-2">
+              <button
+                type="submit"
+          (click)="saveCrew($event)"
+                class="vx-btn vx-btn-primary"
+                [disabled]="savingCrew() || !crewDriverId() || !crewVehicleId()"
+              >
+                {{ savingCrew() ? 'Saving…' : 'Save crew' }}
+              </button>
+              <button
+                type="button"
+                class="vx-btn vx-btn-ghost"
+                [disabled]="savingCrew()"
+                (click)="crewOpen.set(false)"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </section>
+      }
 
       <section class="vx-card vx-card-pad mb-6">
         @if (loading()) {
@@ -230,6 +318,8 @@ import { formatDate, formatRelative, formatTime, secondsSince } from '@vexto/uti
 export class TripDetailPage {
   private readonly api = inject(TripsApi);
   private readonly trackingApi = inject(TrackingApi);
+  private readonly driversApi = inject(DriversApi);
+  private readonly vehiclesApi = inject(VehiclesApi);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
   private readonly permissions = inject(PermissionService);
@@ -246,6 +336,13 @@ export class TripDetailPage {
   protected readonly location = signal<TripLocation | null>(null);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
+
+  protected readonly crewOpen = signal(false);
+  protected readonly savingCrew = signal(false);
+  protected readonly crewDriverId = signal('');
+  protected readonly crewVehicleId = signal('');
+  protected readonly driverOptions = signal<PickerOption[]>([]);
+  protected readonly vehicleOptions = signal<PickerOption[]>([]);
 
   /** Attendance from the dedicated endpoint when available, otherwise the trip's own manifest. */
   protected readonly passengers = computed(
@@ -324,6 +421,66 @@ export class TripDetailPage {
         error: () => this.location.set(null),
       });
     }
+  }
+
+  protected value(event: Event): string {
+    return (event.target as HTMLSelectElement).value;
+  }
+
+  /**
+   * Opens the substitution form, loading the choices from the picker endpoints.
+   *
+   * Pickers rather than the full lists: an operator with two hundred drivers should not download
+   * two hundred records to fill one select, and the pickers already exclude anyone suspended or
+   * any bus in the workshop — which are precisely the ones the API would refuse anyway.
+   */
+  protected openCrew(): void {
+    const trip = this.detail()?.trip;
+
+    this.crewDriverId.set(trip?.driver?.id ?? '');
+    this.crewVehicleId.set(trip?.vehicle?.id ?? '');
+    this.crewOpen.set(true);
+
+    this.driversApi.picker({ pageSize: 50 }).subscribe({
+      next: (options) => this.driverOptions.set(options),
+      error: () => this.driverOptions.set([]),
+    });
+
+    this.vehiclesApi.picker({ pageSize: 50 }).subscribe({
+      next: (options) => this.vehicleOptions.set(options),
+      error: () => this.vehicleOptions.set([]),
+    });
+  }
+
+  protected saveCrew(event: Event): void {
+    event.preventDefault();
+
+    const driverId = this.crewDriverId();
+    const vehicleId = this.crewVehicleId();
+
+    if (this.savingCrew() || !driverId || !vehicleId) {
+      return;
+    }
+
+    this.savingCrew.set(true);
+
+    this.api.changeResources(this.tripId(), { driverId, vehicleId }).subscribe({
+      next: () => {
+        this.savingCrew.set(false);
+        this.crewOpen.set(false);
+        this.toast.success('Crew changed for this trip.');
+        this.load();
+      },
+      error: (error: unknown) => {
+        this.savingCrew.set(false);
+
+        // The API answers 409 with a readable reason — the trip has started, the bus is too small,
+        // the driver is suspended — so it is shown rather than replaced with a generic message.
+        this.toast.error(
+          error instanceof VextoApiError ? error.message : 'We could not change the crew.',
+        );
+      },
+    });
   }
 
   protected markReady(): void {

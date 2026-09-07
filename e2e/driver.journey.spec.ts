@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { accounts, mockGps, signIn } from './fixtures';
+import { accounts, mockGps, openTodaysTrip, routeCode, signIn } from './fixtures';
 
 /**
  * The driver half of the pilot: open today's trip, start it, publish a position, board a passenger.
@@ -18,29 +18,54 @@ test("sees today's trip", async ({ page }) => {
   await page.goto('/trips');
 
   await expect(page.getByRole('heading', { name: "Today's trips" })).toBeVisible();
-  await expect(page.getByText('Open trip').or(page.getByText('Continue trip')).first()).toBeVisible();
+  // The trip this run's operator setup generated, not merely some trip.
+  await expect(page.getByRole('link').filter({ hasText: routeCode })).toBeVisible();
 });
 
 test('starts the trip and begins sharing location', async ({ page }) => {
-  await page.goto('/trips');
-  await page.getByText('Open trip').or(page.getByText('Continue trip')).first().click();
+  await openTodaysTrip(page);
 
-  await expect(page).toHaveURL(/\/trips\/[0-9a-f-]{36}/u);
-
+  // Waited for before anything is asked about the buttons. `isVisible()` does not wait, so on a
+  // page that is still loading it reports "no start button" and the test would go on to expect
+  // tracking from a trip nobody had started.
+  const started = page.getByText('Started', { exact: true });
   const start = page.getByRole('button', { name: 'START TRIP' });
+
+  await expect(start.or(started).first()).toBeVisible();
 
   if (await start.isVisible()) {
     await start.click();
-    await expect(page.getByText('Trip started.')).toBeVisible();
   }
+
+  // Re-run the suite and the trip is already under way, so the state is asserted rather than the
+  // toast that only a first run produces.
+  await expect(started.first()).toBeVisible();
 
   // The status line is the driver's only signal that the operator can see them.
   await expect(page.getByText('Location active')).toBeVisible({ timeout: 20_000 });
 });
 
+/**
+ * The next stop, and the way to it.
+ *
+ * Asserted before boarding, because boarding the last person at a stop is exactly what makes the
+ * panel move on — so this is the only point in the run where the first stop is still the answer.
+ */
+test('shows the next stop with a navigation link', async ({ page }) => {
+  await openTodaysTrip(page);
+
+  await expect(page.getByText('Next stop')).toBeVisible();
+  await expect(page.getByText(/passenger.? waiting/u)).toBeVisible();
+
+  // An external maps link, not an embedded navigator. Checked as an href rather than followed:
+  // clicking it would leave the app for a third-party site.
+  const navigate = page.getByRole('link', { name: 'Navigate to stop' });
+  await expect(navigate).toBeVisible();
+  await expect(navigate).toHaveAttribute('href', /google\.com\/maps\/dir/u);
+});
+
 test('boards the first passenger', async ({ page }) => {
-  await page.goto('/trips');
-  await page.getByText('Continue trip').first().click();
+  await openTodaysTrip(page);
 
   const boarded = page.getByRole('button', { name: 'Boarded' }).first();
   await expect(boarded).toBeVisible();

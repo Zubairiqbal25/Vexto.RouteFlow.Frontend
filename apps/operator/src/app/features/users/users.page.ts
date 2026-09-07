@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { UsersApi } from '@vexto/api-client';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { UsersApi, VextoApiError } from '@vexto/api-client';
 import type { UserResponse } from '@vexto/models';
 import { CanDirective, VextoPermissions } from '@vexto/permissions';
 import {
@@ -27,10 +27,14 @@ interface UserFilters extends Record<string, unknown> {
 /**
  * Portal accounts for this operator.
  *
- * Creating a user needs a password, and Vexto's rule is that this UI never handles one: accounts
- * are created through the platform and driver/passenger account flows. This screen therefore
- * manages the accounts that exist — activation, suspension and roles — and does not offer a
- * "new user" form.
+ * **Invitations, not passwords.** This UI never handles a password for somebody else, and now it
+ * does not have to: inviting creates the account and issues a one-shot link, and the person sets
+ * their own password. The account is inert until they do — it has no password hash at all, so
+ * there is no temporary credential in existence to leak or to forget to change.
+ *
+ * In Development the API returns the link so it can be copied straight out of the dialog. In
+ * production it does not, and the invitee receives it through delivery instead; the dialog says so
+ * rather than showing an empty box.
  */
 @Component({
   selector: 'vexto-users-page',
@@ -49,7 +53,90 @@ interface UserFilters extends Record<string, unknown> {
     VxTableShell,
   ],
   template: `
-    <vx-page-header title="Users" description="Who can sign in to this operator's portal." />
+    <vx-page-header title="Users" description="Who can sign in to this operator's portal.">
+      <button *vxCan="manage" actions type="button" class="vx-btn vx-btn-primary" (click)="openInvite()">
+        Invite user
+      </button>
+    </vx-page-header>
+
+    @if (inviteOpen()) {
+      <div class="vx-card mb-5 p-5">
+        <h2 class="text-body font-semibold text-ink">Invite a colleague</h2>
+        <p class="mt-1 text-meta text-ink-muted">
+          They receive a one-time link and choose their own password. You never see it.
+        </p>
+
+        <form class="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2" (submit)="invite($event)">
+          <label class="block">
+            <span class="vx-section-label">First name</span>
+            <input
+              class="vx-input mt-1 w-full"
+              required
+              [value]="draft().firstName"
+              (input)="patch({ firstName: text($event) })"
+            />
+          </label>
+
+          <label class="block">
+            <span class="vx-section-label">Last name</span>
+            <input
+              class="vx-input mt-1 w-full"
+              required
+              [value]="draft().lastName"
+              (input)="patch({ lastName: text($event) })"
+            />
+          </label>
+
+          <label class="block">
+            <span class="vx-section-label">Email</span>
+            <input
+              class="vx-input mt-1 w-full"
+              type="email"
+              required
+              [value]="draft().email"
+              (input)="patch({ email: text($event) })"
+            />
+          </label>
+
+          <label class="block">
+            <span class="vx-section-label">Role</span>
+            <select
+              class="vx-select mt-1 w-full"
+              [value]="role()"
+              (change)="role.set(value($event))"
+            >
+              @for (option of roles; track option) {
+                <option [value]="option">{{ option }}</option>
+              }
+            </select>
+          </label>
+
+          <div class="sm:col-span-2 flex flex-wrap gap-2">
+            <button type="submit"
+          (click)="invite($event)" class="vx-btn vx-btn-primary" [disabled]="inviting()">
+              {{ inviting() ? 'Sending…' : 'Send invitation' }}
+            </button>
+            <button
+              type="button"
+              class="vx-btn vx-btn-ghost"
+              [disabled]="inviting()"
+              (click)="inviteOpen.set(false)"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+
+        @if (lastInviteUrl(); as url) {
+          <div class="mt-4 rounded-xl border border-line-subtle bg-surface-muted p-4">
+            <p class="text-meta font-medium text-ink">
+              Development only: this link is not returned in production.
+            </p>
+            <p class="mt-1 break-all text-meta text-ink-secondary">{{ url }}</p>
+          </div>
+        }
+      </div>
+    }
 
     <vx-table-shell
       [loading]="list.loading()"
@@ -159,6 +246,16 @@ export class UsersPage {
   protected readonly manage = VextoPermissions.Users.Manage;
   protected readonly dateTime = formatDateTime;
 
+  /** Tenant-assignable roles only. A tenant can never mint a platform administrator. */
+  protected readonly roles = ['TenantAdmin', 'Dispatcher', 'Finance'];
+
+  protected readonly inviteOpen = signal(false);
+  protected readonly inviting = signal(false);
+  protected readonly role = signal('Dispatcher');
+  protected readonly lastInviteUrl = signal<string | null>(null);
+
+  protected readonly draft = signal({ email: '', firstName: '', lastName: '' });
+
   protected readonly list = new PagedList<UserResponse, UserFilters>(
     (filters, page, pageSize) =>
       this.api.list({
@@ -172,6 +269,53 @@ export class UsersPage {
 
   protected value(event: Event): string {
     return (event.target as HTMLSelectElement).value;
+  }
+
+  protected text(event: Event): string {
+    return (event.target as HTMLInputElement).value;
+  }
+
+  protected patch(change: Partial<{ email: string; firstName: string; lastName: string }>): void {
+    this.draft.update((current) => ({ ...current, ...change }));
+  }
+
+  protected openInvite(): void {
+    this.draft.set({ email: '', firstName: '', lastName: '' });
+    this.role.set('Dispatcher');
+    this.lastInviteUrl.set(null);
+    this.inviteOpen.set(true);
+  }
+
+  protected invite(event: Event): void {
+    event.preventDefault();
+
+    if (this.inviting()) {
+      return;
+    }
+
+    this.inviting.set(true);
+
+    const { email, firstName, lastName } = this.draft();
+
+    this.api
+      .invite({ email, firstName, lastName, phoneNumber: null, roles: [this.role()] })
+      .subscribe({
+        next: (result) => {
+          this.inviting.set(false);
+
+          // Null in production, which is the correct behaviour: the link is a credential.
+          this.lastInviteUrl.set(result.invitation.acceptUrl ?? null);
+
+          this.toast.success(`Invitation sent to ${result.user.email}.`);
+          this.list.refreshQuietly();
+        },
+        error: (error: unknown) => {
+          this.inviting.set(false);
+          this.toast.error(
+            error instanceof VextoApiError ? error.message : 'We could not send that invitation.',
+          );
+        },
+      });
   }
 
   protected activate(user: UserResponse): void {

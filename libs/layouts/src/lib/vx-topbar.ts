@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { AuthService, AuthStore } from '@vexto/auth';
 import { VxAvatar, VxIcon } from '@vexto/ui';
+import { VxNotificationBell } from './vx-notification-bell';
 
 /**
  * The operator portal's top bar: which operator you are working in, who you are, and the way out.
@@ -8,13 +9,13 @@ import { VxAvatar, VxIcon } from '@vexto/ui';
  * The tenant name is shown deliberately and permanently. Vexto is multi-tenant, and someone who
  * administers two operators must never be in doubt about which one they are editing.
  *
- * Notifications are a placeholder on purpose — the backend has no notification module yet, and a
- * bell that opens an empty panel is worse than a bell that is honestly inert.
+ * The bell is the real one: it reads `/api/v1/notifications`, which resolves its recipient from the
+ * token, so this same component serves the operator portal and both mobile apps.
  */
 @Component({
   selector: 'vx-topbar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [VxAvatar, VxIcon],
+  imports: [VxAvatar, VxIcon, VxNotificationBell],
   host: { '(document:click)': 'menuOpen = false' },
   template: `
     <header
@@ -52,14 +53,7 @@ import { VxAvatar, VxIcon } from '@vexto/ui';
           </span>
         }
 
-        <button
-          type="button"
-          class="vx-btn vx-btn-ghost vx-btn-icon"
-          aria-label="Notifications (coming soon)"
-          disabled
-        >
-          <vx-icon name="bell" [size]="19" />
-        </button>
+        <vx-notification-bell />
 
         <div class="relative">
           <button

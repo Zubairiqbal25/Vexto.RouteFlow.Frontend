@@ -277,6 +277,7 @@ const STOP_TYPES: readonly RouteStopType[] = ['Pickup', 'DropOff', 'PickupAndDro
         type="submit"
         footer
         form="stop-form"
+        (click)="save()"
         class="vx-btn vx-btn-primary"
         [disabled]="saving()"
       >

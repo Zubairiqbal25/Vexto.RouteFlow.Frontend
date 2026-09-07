@@ -10,6 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { MapLoader } from './map-loader.service';
+import { decodePolyline } from './polyline';
 
 /** A point the map can draw. Providers differ; this shape does not. */
 export interface VxMapMarker {
@@ -77,6 +78,16 @@ export class VxMap {
   readonly zoom = input(12);
   /** Re-frames the viewport around all markers whenever the set changes. */
   readonly fitToMarkers = input(true);
+
+  /**
+   * An encoded polyline to draw beneath the markers, as the backend returned it.
+   *
+   * Opaque to every caller: the route preview and ETA endpoints pass a provider string straight
+   * through, and this component is the only place that knows how to decode one. Null draws no
+   * line, which is the normal state for a route with fewer than two stops.
+   */
+  readonly polyline = input<string | null>(null);
+
   readonly markerSelected = output<string>();
 
   protected readonly ready = signal(false);
@@ -84,21 +95,24 @@ export class VxMap {
 
   private map: google.maps.Map | null = null;
   private readonly pins = new Map<string, google.maps.Marker>();
+  private path: google.maps.Polyline | null = null;
   private hasFitted = false;
 
   constructor() {
     effect(() => {
-      // Reading the markers here keeps the effect subscribed before the async gap below.
+      // Reading the inputs here keeps the effect subscribed before the async gap below.
       const markers = this.markers();
       const center = this.center();
+      const polyline = this.polyline();
 
-      void this.render(markers, center);
+      void this.render(markers, center, polyline);
     });
   }
 
   private async render(
     markers: readonly VxMapMarker[],
     center: { lat: number; lng: number } | null,
+    polyline: string | null,
   ): Promise<void> {
     if (!this.map) {
       const loaded = await this.loader.load();
@@ -126,6 +140,7 @@ export class VxMap {
     }
 
     this.syncMarkers(markers);
+    this.syncPath(polyline);
 
     if (center) {
       this.map.panTo(center);
@@ -178,6 +193,50 @@ export class VxMap {
     }
   }
 
+  /**
+   * Draws, replaces or removes the route line.
+   *
+   * Decoding happens in the provider SDK rather than here: `google.maps.geometry` is not loaded,
+   * so the encoded string is handed to `Polyline` through its own decoder. When no line is
+   * available the existing one is removed rather than left behind, so a route that loses its path
+   * does not keep showing the old one.
+   */
+  private syncPath(polyline: string | null): void {
+    if (!this.map) {
+      return;
+    }
+
+    if (!polyline) {
+      this.path?.setMap(null);
+      this.path = null;
+
+      return;
+    }
+
+    const points = decodePolyline(polyline);
+
+    if (points.length === 0) {
+      return;
+    }
+
+    if (this.path) {
+      this.path.setPath(points);
+
+      return;
+    }
+
+    this.path = new google.maps.Polyline({
+      map: this.map,
+      path: points,
+      strokeColor: TONE_COLOURS.primary,
+      strokeOpacity: 0.85,
+      strokeWeight: 4,
+
+      // Beneath the pins: the line is context, the stops are the content.
+      zIndex: 0,
+    });
+  }
+
   /** A rounded arrow, tinted by tone and rotated by heading. Drawn as SVG so it stays crisp. */
   private icon(marker: VxMapMarker): google.maps.Symbol {
     const colour = TONE_COLOURS[marker.tone ?? 'primary'];
@@ -202,6 +261,12 @@ export class VxMap {
 
     for (const marker of markers) {
       bounds.extend({ lat: marker.lat, lng: marker.lng });
+    }
+
+    // The line can wander outside the stops it joins — a road that loops away and comes back —
+    // so it is part of what has to fit.
+    for (const point of decodePolyline(this.polyline())) {
+      bounds.extend(point);
     }
 
     this.map.fitBounds(bounds, 64);

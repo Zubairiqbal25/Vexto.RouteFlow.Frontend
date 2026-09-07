@@ -6,11 +6,13 @@ import {
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PassengersApi, VextoApiError } from '@vexto/api-client';
 import type { PassengerResponse } from '@vexto/models';
 import { ToastService, VxField, VxFormSection, VxModal } from '@vexto/ui';
+import { InvitePanel, type InvitationGateway } from '../../shared/invite-panel';
 
 /**
  * Add or edit a passenger, in a drawer.
@@ -21,7 +23,7 @@ import { ToastService, VxField, VxFormSection, VxModal } from '@vexto/ui';
 @Component({
   selector: 'vexto-passenger-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, VxModal, VxField, VxFormSection],
+  imports: [ReactiveFormsModule, VxModal, VxField, VxFormSection, InvitePanel],
   template: `
     <vx-modal
       variant="drawer"
@@ -98,10 +100,25 @@ import { ToastService, VxField, VxFormSection, VxModal } from '@vexto/ui';
         </vx-form-section>
       </form>
 
+      <!--
+        App access only makes sense for somebody who already exists: there is no record to attach
+        an account to while the form is still creating one.
+      -->
+      @if (passenger(); as existing) {
+        <div class="mt-6 border-t border-line-subtle pt-5">
+          <vexto-invite-panel
+            #invitePanel
+            [gateway]="inviteGateway(existing.id)"
+            [subject]="existing.firstName"
+          />
+        </div>
+      }
+
       <button type="button" footer class="vx-btn vx-btn-secondary" [disabled]="busy()" (click)="dismissed.emit()">
         Cancel
       </button>
-      <button type="submit" footer form="passenger-form" class="vx-btn vx-btn-primary" [disabled]="busy()">
+      <button type="submit" footer form="passenger-form"
+        (click)="submit()" class="vx-btn vx-btn-primary" [disabled]="busy()">
         {{ busy() ? 'Saving…' : passenger() ? 'Save changes' : 'Add passenger' }}
       </button>
     </vx-modal>
@@ -110,6 +127,9 @@ import { ToastService, VxField, VxFormSection, VxModal } from '@vexto/ui';
 export class PassengerForm {
   private readonly api = inject(PassengersApi);
   private readonly toast = inject(ToastService);
+
+  /** The panel, so its status can be loaded once the dialog opens on an existing passenger. */
+  private readonly invitePanel = viewChild<InvitePanel>('invitePanel');
 
   readonly open = input(false);
   /** Null creates; a passenger edits. */
@@ -146,8 +166,29 @@ export class PassengerForm {
         notes: existing?.notes ?? '',
       });
       this.formError.set(null);
+
+      // Loaded when the drawer opens on an existing passenger. The panel is not rendered at all
+      // while creating one, so there is nothing to ask about.
+      if (existing) {
+        this.invitePanel()?.load();
+      }
       this.serverErrors.set(null);
     });
+  }
+
+  /**
+   * The four invitation calls for this passenger, handed to the shared panel.
+   *
+   * Built here rather than inside the panel so that the same component serves drivers too — the
+   * flow is identical and only the URLs differ.
+   */
+  protected inviteGateway(passengerId: string): InvitationGateway {
+    return {
+      status: () => this.api.invitationStatus(passengerId),
+      invite: (email: string) => this.api.invite(passengerId, email),
+      resend: () => this.api.resendInvitation(passengerId),
+      revoke: () => this.api.revokeInvitation(passengerId),
+    };
   }
 
   /** A per-field message returned by the API, shown under the matching control. */

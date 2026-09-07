@@ -1,14 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import {
-  DriversApi,
-  PassengersApi,
-  TrackingApi,
-  TripsApi,
-  VehiclesApi,
-} from '@vexto/api-client';
+import { DashboardApi, TrackingApi, TripsApi } from '@vexto/api-client';
 import { AuthStore } from '@vexto/auth';
-import type { ActiveFleetTrip, TripResponse } from '@vexto/models';
+import type { ActiveFleetTrip, DashboardSummary, TripResponse } from '@vexto/models';
 import { PermissionService, VextoPermissions } from '@vexto/permissions';
 import {
   VxAvatar,
@@ -24,13 +18,14 @@ import { formatRelative, formatTime, secondsSince } from '@vexto/utilities';
 /**
  * The operator's morning view.
  *
- * **On data sources.** The backend has no dashboard aggregate endpoint, so this page is assembled
- * from five requests, deliberately chosen: three counts (each a page-size-one list, read only for
- * its `totalCount`), one page of today's trips that every panel below is derived from, and the
- * active-fleet feed. It never issues a request per row.
+ * **On data sources.** The tiles and the attendance strip come from
+ * `GET /api/v1/dashboard/summary`, one request that the backend answers in a fixed number of
+ * queries however large the operation is. This page used to assemble the same numbers from five
+ * requests, one of which paged a hundred trips purely to count them.
  *
- * A `GET /api/v1/dashboard/summary` returning those counts plus today's trip breakdown would reduce
- * this to two calls; it is listed in the API gaps in docs/frontend-architecture.md.
+ * Two further requests remain, and they are not counts: a page of today's trips, which the three
+ * panels below are all derived from, and the active-fleet feed the map-less fleet list needs. Both
+ * return rows that are actually displayed.
  *
  * Panels the signed-in user has no permission for are not rendered at all, rather than rendered
  * empty — a dispatcher without fleet rights should not see an "Active Vehicles: —" tile.
@@ -58,48 +53,103 @@ import { formatRelative, formatTime, secondsSince } from '@vexto/utilities';
       </p>
     </header>
 
-    <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      @if (can(perms.Passengers.View)) {
+    @if (can(perms.Dashboard.View)) {
+      <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <vx-stat-card
           label="Active Passengers"
           icon="passengers"
           accent="primary"
-          [loading]="loadingCounts()"
-          [value]="passengerCount()"
+          [loading]="loadingSummary()"
+          [value]="summary()?.activePassengers ?? '—'"
           context="Cleared to travel"
         />
-      }
-      @if (can(perms.Drivers.View)) {
         <vx-stat-card
           label="Active Drivers"
           icon="drivers"
           accent="info"
-          [loading]="loadingCounts()"
-          [value]="driverCount()"
+          [loading]="loadingSummary()"
+          [value]="summary()?.activeDrivers ?? '—'"
           context="Available to assign"
         />
-      }
-      @if (can(perms.Fleet.View)) {
         <vx-stat-card
           label="Active Vehicles"
           icon="vehicle"
           accent="success"
-          [loading]="loadingCounts()"
-          [value]="vehicleCount()"
+          [loading]="loadingSummary()"
+          [value]="summary()?.activeVehicles ?? '—'"
           context="In service"
         />
-      }
-      @if (can(perms.Trips.View)) {
         <vx-stat-card
           label="Today's Trips"
           icon="trips"
           accent="warning"
-          [loading]="loadingTrips()"
-          [value]="todaysTrips().length"
+          [loading]="loadingSummary()"
+          [value]="todaysTripTotal()"
           [context]="completedContext()"
         />
+      </div>
+
+      @if (summary(); as today) {
+        <vx-section-card
+          class="mb-6 block"
+          title="Today at a glance"
+          [description]="'Service date ' + today.serviceDate + ', in your own time zone.'"
+        >
+          <dl class="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4 lg:grid-cols-7">
+            <div>
+              <dt class="vx-section-label">Scheduled</dt>
+              <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
+                {{ today.today.scheduledTrips }}
+              </dd>
+            </div>
+            <div>
+              <dt class="vx-section-label">Running</dt>
+              <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
+                {{ today.today.startedTrips }}
+              </dd>
+            </div>
+            <div>
+              <dt class="vx-section-label">Completed</dt>
+              <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
+                {{ today.today.completedTrips }}
+              </dd>
+            </div>
+            <div>
+              <dt class="vx-section-label">Cancelled</dt>
+              <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
+                {{ today.today.cancelledTrips }}
+              </dd>
+            </div>
+            <div>
+              <dt class="vx-section-label">Boarded</dt>
+              <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
+                {{ today.attendance.boarded }} / {{ today.attendance.expected }}
+              </dd>
+            </div>
+            <div>
+              <dt class="vx-section-label">No-shows</dt>
+              <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
+                {{ today.attendance.noShow }}
+              </dd>
+            </div>
+            <div>
+              <dt class="vx-section-label">Tracking</dt>
+              <dd class="mt-1 flex flex-wrap items-center gap-1.5">
+                <vx-status-badge tone="success" [label]="today.tracking.liveVehicles + ' live'" />
+                @if (today.tracking.staleVehicles + today.tracking.offlineVehicles > 0) {
+                  <vx-status-badge
+                    tone="warning"
+                    [label]="
+                      today.tracking.staleVehicles + today.tracking.offlineVehicles + ' quiet'
+                    "
+                  />
+                }
+              </dd>
+            </div>
+          </dl>
+        </vx-section-card>
       }
-    </div>
+    }
 
     @if (can(perms.Trips.View)) {
       <div class="grid gap-5 xl:grid-cols-2">
@@ -290,9 +340,7 @@ import { formatRelative, formatTime, secondsSince } from '@vexto/utilities';
   `,
 })
 export class DashboardPage {
-  private readonly passengersApi = inject(PassengersApi);
-  private readonly driversApi = inject(DriversApi);
-  private readonly vehiclesApi = inject(VehiclesApi);
+  private readonly dashboardApi = inject(DashboardApi);
   private readonly tripsApi = inject(TripsApi);
   private readonly trackingApi = inject(TrackingApi);
   private readonly permissions = inject(PermissionService);
@@ -305,13 +353,28 @@ export class DashboardPage {
   protected readonly firstName = computed(() => this.store.user()?.firstName ?? 'there');
   protected readonly tenantName = this.store.tenantName;
 
-  protected readonly passengerCount = signal<number | string>('—');
-  protected readonly driverCount = signal<number | string>('—');
-  protected readonly vehicleCount = signal<number | string>('—');
+  protected readonly summary = signal<DashboardSummary | null>(null);
   protected readonly todaysTrips = signal<TripResponse[]>([]);
   protected readonly fleet = signal<ActiveFleetTrip[]>([]);
-  protected readonly loadingCounts = signal(true);
+  protected readonly loadingSummary = signal(true);
   protected readonly loadingTrips = signal(true);
+
+  /** Every state a trip can be in today, so the tile agrees with the strip beneath it. */
+  protected readonly todaysTripTotal = computed(() => {
+    const today = this.summary()?.today;
+
+    if (!today) {
+      return '—';
+    }
+
+    return (
+      today.scheduledTrips +
+      today.readyTrips +
+      today.startedTrips +
+      today.completedTrips +
+      today.cancelledTrips
+    );
+  });
 
   protected readonly inProgress = computed(() =>
     this.todaysTrips().filter((trip) => trip.status === 'Started'),
@@ -331,14 +394,12 @@ export class DashboardPage {
       .slice(0, 5),
   );
 
-  protected readonly completedContext = computed(() => {
-    const completed = this.todaysTrips().filter((trip) => trip.status === 'Completed').length;
-
-    return `${completed} completed`;
-  });
+  protected readonly completedContext = computed(
+    () => `${this.summary()?.today.completedTrips ?? 0} completed`,
+  );
 
   constructor() {
-    this.loadCounts();
+    this.loadSummary();
     this.loadTrips();
   }
 
@@ -371,56 +432,20 @@ export class DashboardPage {
     return { tone, label: tone === 'success' ? 'Live' : 'Stale' };
   }
 
-  /**
-   * Counts come from `totalCount` on a one-item page — the cheapest count the API offers, and the
-   * reason each of these asks for `pageSize: 1`.
-   */
-  private loadCounts(): void {
-    const pending: Promise<unknown>[] = [];
+  private loadSummary(): void {
+    if (!this.can(VextoPermissions.Dashboard.View)) {
+      this.loadingSummary.set(false);
 
-    if (this.can(VextoPermissions.Passengers.View)) {
-      pending.push(
-        new Promise((resolve) =>
-          this.passengersApi.list({ status: 'Active', pageSize: 1 }).subscribe({
-            next: (result) => {
-              this.passengerCount.set(result.totalCount);
-              resolve(null);
-            },
-            error: () => resolve(null),
-          }),
-        ),
-      );
+      return;
     }
 
-    if (this.can(VextoPermissions.Drivers.View)) {
-      pending.push(
-        new Promise((resolve) =>
-          this.driversApi.list({ status: 'Active', pageSize: 1 }).subscribe({
-            next: (result) => {
-              this.driverCount.set(result.totalCount);
-              resolve(null);
-            },
-            error: () => resolve(null),
-          }),
-        ),
-      );
-    }
-
-    if (this.can(VextoPermissions.Fleet.View)) {
-      pending.push(
-        new Promise((resolve) =>
-          this.vehiclesApi.list({ status: 'Active', pageSize: 1 }).subscribe({
-            next: (result) => {
-              this.vehicleCount.set(result.totalCount);
-              resolve(null);
-            },
-            error: () => resolve(null),
-          }),
-        ),
-      );
-    }
-
-    void Promise.all(pending).then(() => this.loadingCounts.set(false));
+    this.dashboardApi.summary().subscribe({
+      next: (summary) => {
+        this.summary.set(summary);
+        this.loadingSummary.set(false);
+      },
+      error: () => this.loadingSummary.set(false),
+    });
   }
 
   private loadTrips(): void {

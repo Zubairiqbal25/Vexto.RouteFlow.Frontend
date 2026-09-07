@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { Observable } from 'rxjs';
 import { RoutesApi, TripsApi, VextoApiError } from '@vexto/api-client';
-import type { RouteDetailResponse, TripResponse } from '@vexto/models';
+import { type VxMapMarker, VxMap } from '@vexto/maps';
+import type { RouteDetailResponse, RouteMapPreview, TripResponse } from '@vexto/models';
 import { CanDirective, VextoPermissions } from '@vexto/permissions';
 import {
   ToastService,
@@ -22,7 +24,7 @@ import { RouteResourcesTab } from './route-resources.tab';
 import { RouteScheduleTab } from './route-schedule.tab';
 import { RouteStopsTab } from './route-stops.tab';
 
-type TabId = 'overview' | 'stops' | 'passengers' | 'resources' | 'schedule' | 'trips';
+type TabId = 'overview' | 'map' | 'stops' | 'passengers' | 'resources' | 'schedule' | 'trips';
 
 /**
  * Everything about one route.
@@ -50,6 +52,7 @@ type TabId = 'overview' | 'stops' | 'passengers' | 'resources' | 'schedule' | 't
     VxSkeleton,
     VxStatusBadge,
     VxTabs,
+    VxMap,
   ],
   template: `
     @if (error(); as message) {
@@ -70,6 +73,34 @@ type TabId = 'overview' | 'stops' | 'passengers' | 'resources' | 'schedule' | 't
               <vx-icon name="trips" [size]="16" />
               View trips
             </a>
+            <!--
+              A route is created as a draft and cannot generate trips until it is in service. Without
+              this control a route built in the portal is a dead end: everything about it can be
+              configured and none of it will ever produce a journey.
+            -->
+            @if (loaded.route.status === 'Active') {
+              <button
+                *vxCan="manage"
+                type="button"
+                class="vx-btn vx-btn-secondary"
+                [disabled]="changingStatus()"
+                (click)="deactivate()"
+              >
+                Take out of service
+              </button>
+            } @else {
+              <button
+                *vxCan="manage"
+                type="button"
+                class="vx-btn vx-btn-secondary"
+                [disabled]="changingStatus()"
+                (click)="activate()"
+              >
+                <vx-icon name="check" [size]="16" />
+                Activate route
+              </button>
+            }
+
             <button
               *vxCan="manage"
               type="button"
@@ -191,6 +222,55 @@ type TabId = 'overview' | 'stops' | 'passengers' | 'resources' | 'schedule' | 't
               }
             </vx-section-card>
           }
+          @case ('map') {
+            <vx-section-card
+              title="Route map"
+              description="The stops in the order you planned them, and the road between them."
+            >
+              @if (preview(); as drawn) {
+                <div class="mb-4 flex flex-wrap gap-6">
+                  <div>
+                    <dt class="vx-section-label">Stops</dt>
+                    <dd class="mt-1 text-body text-ink">{{ drawn.stops.length }}</dd>
+                  </div>
+                  <div>
+                    <dt class="vx-section-label">Distance</dt>
+                    <dd class="mt-1 text-body text-ink">{{ distance() }}</dd>
+                  </div>
+                  <div>
+                    <dt class="vx-section-label">Driving time</dt>
+                    <dd class="mt-1 text-body text-ink">{{ duration() }}</dd>
+                  </div>
+                </div>
+
+                @if (drawn.stops.length === 0) {
+                  <p class="text-body text-ink-muted">
+                    This route has no active stops yet, so there is nothing to draw. Add stops on
+                    the Stops tab.
+                  </p>
+                } @else {
+                  <div class="h-[26rem] w-full">
+                    <vx-map
+                      [markers]="stopMarkers()"
+                      [polyline]="drawn.polyline"
+                      [fitToMarkers]="true"
+                    />
+                  </div>
+
+                  @if (!drawn.polyline) {
+                    <p class="mt-3 text-meta text-ink-muted">
+                      The stops are shown without a road path: either this route has a single stop,
+                      or no map provider is configured for this environment.
+                    </p>
+                  }
+                }
+              } @else if (previewError()) {
+                <p class="text-body text-ink-muted">We could not load the route map.</p>
+              } @else {
+                <div class="vx-skeleton h-[26rem] w-full rounded-2xl"></div>
+              }
+            </vx-section-card>
+          }
           @case ('stops') {
             <vexto-route-stops-tab [routeId]="routeId()" (changed)="load()" />
           }
@@ -272,17 +352,57 @@ export class RouteDetailPage {
   protected readonly dateTime = formatDateTime;
 
   protected readonly detail = signal<RouteDetailResponse | null>(null);
+  protected readonly preview = signal<RouteMapPreview | null>(null);
+  protected readonly previewError = signal(false);
   protected readonly trips = signal<TripResponse[]>([]);
+
+  /**
+   * The stops as map pins, numbered by the operator's own sequence.
+   *
+   * The first and last are tinted differently so the direction of travel is readable without
+   * reading the numbers — which is the question somebody opens this tab to answer.
+   */
+  protected readonly stopMarkers = computed<VxMapMarker[]>(() => {
+    const stops = this.preview()?.stops ?? [];
+
+    return stops.map((stop, index) => ({
+      id: stop.id,
+      lat: stop.latitude,
+      lng: stop.longitude,
+      label: `${stop.sequence}. ${stop.name}`,
+      tone: index === 0 ? 'success' : index === stops.length - 1 ? 'danger' : 'primary',
+    }));
+  });
+
+  protected readonly distance = computed(() => {
+    const metres = this.preview()?.distanceMeters;
+
+    return metres === null || metres === undefined ? '—' : `${(metres / 1000).toFixed(1)} km`;
+  });
+
+  protected readonly duration = computed(() => {
+    const seconds = this.preview()?.durationSeconds;
+
+    if (seconds === null || seconds === undefined) {
+      return '—';
+    }
+
+    const minutes = Math.round(seconds / 60);
+
+    return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+  });
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly tab = signal<TabId>('overview');
   protected readonly editOpen = signal(false);
+  protected readonly changingStatus = signal(false);
 
   protected readonly tabs = computed<VxTab[]>(() => {
     const summary = this.detail()?.summary;
 
     return [
       { id: 'overview', label: 'Overview' },
+      { id: 'map', label: 'Map' },
       { id: 'stops', label: 'Stops', count: summary?.activeStopCount ?? null },
       { id: 'passengers', label: 'Passengers', count: summary?.activePassengerCount ?? null },
       { id: 'resources', label: 'Resources' },
@@ -329,6 +449,55 @@ export class RouteDetailPage {
     this.tripsApi.list({ routeId: this.routeId(), pageSize: 10 }).subscribe({
       next: (result) => this.trips.set(result.items),
       error: () => this.trips.set([]),
+    });
+
+    // The preview is loaded with the rest rather than on tab open: the backend caches it, so a
+    // repeat visit costs nothing, and the tab is instant the first time somebody clicks it. A
+    // failure here is contained to the map tab — it must not take the route page down.
+    this.previewError.set(false);
+
+    this.api.mapPreview(this.routeId()).subscribe({
+      next: (preview) => this.preview.set(preview),
+      error: () => {
+        this.preview.set(null);
+        this.previewError.set(true);
+      },
+    });
+  }
+
+  /**
+   * Puts the route into service.
+   *
+   * Refused by the API for a route with no active stop, which is the mistake worth catching: a
+   * route with nowhere to collect anybody would generate trips carrying an empty manifest.
+   */
+  protected activate(): void {
+    this.changeStatus(this.api.activate(this.routeId()), 'This route is now in service.');
+  }
+
+  protected deactivate(): void {
+    this.changeStatus(this.api.deactivate(this.routeId()), 'This route is out of service.');
+  }
+
+  private changeStatus(request: Observable<unknown>, message: string): void {
+    if (this.changingStatus()) {
+      return;
+    }
+
+    this.changingStatus.set(true);
+
+    request.subscribe({
+      next: () => {
+        this.changingStatus.set(false);
+        this.toast.success(message);
+        this.load();
+      },
+      error: (error: unknown) => {
+        this.changingStatus.set(false);
+        this.toast.error(
+          error instanceof VextoApiError ? error.message : 'We could not change this route.',
+        );
+      },
     });
   }
 

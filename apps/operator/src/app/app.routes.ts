@@ -1,7 +1,8 @@
 import { Component } from '@angular/core';
 import type { Routes } from '@angular/router';
 import { anonymousGuard, authGuard } from '@vexto/auth';
-import { VxAdminShell, VxAuthShell, VxLoginPage } from '@vexto/layouts';
+import { VxAdminShell, VxAuthShell, VxLoginPage,
+  VxAcceptInvitationPage } from '@vexto/layouts';
 import { VextoPermissions, permissionGuard } from '@vexto/permissions';
 import { OPERATOR_NAV } from './navigation';
 
@@ -25,10 +26,24 @@ export class OperatorShell {
 
 export const routes: Routes = [
   {
+    // Redeeming an invitation is deliberately outside the anonymous guard. Somebody who is already
+    // signed in on this device may still be holding a link for a different account — a driver
+    // setting up a passenger's phone, say — and bouncing them to the dashboard would strand it.
+    path: 'accept-invitation',
+    component: VxAcceptInvitationPage,
+    title: 'Set your password · Vexto',
+  },
+  {
     path: '',
     component: VxAuthShell,
     canActivate: [anonymousGuard],
+
+    // Where the guard sends somebody who is already signed in. It must not be '/', which is the
+    // URL being guarded — see anonymousGuard.
+    data: { home: '/dashboard' },
     children: [
+      // Landing on '/' signed out must show the sign-in screen, not an empty auth shell.
+      { path: '', pathMatch: 'full', redirectTo: 'login' },
       {
         path: 'login',
         component: VxLoginPage,
@@ -80,6 +95,13 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/live-fleet/live-fleet.page').then((m) => m.LiveFleetPage),
         title: 'Live Fleet · Vexto',
+      },
+      {
+        // Guarded by Billing.View at the top and again per child, because the payments pages need
+        // Payments.View instead: a clerk may raise invoices without being able to see, or reverse,
+        // money that has already moved.
+        path: 'billing',
+        loadChildren: () => import('./features/billing/billing.routes').then((m) => m.routes),
       },
       {
         path: 'users',

@@ -1,7 +1,10 @@
 {
-  "apiBaseUrl": "https://localhost:7154",
-  "trackingHubUrl": "https://localhost:7154/hubs/tracking",
+  "apiBaseUrl": "http://localhost:5154",
+  "trackingHubUrl": "http://localhost:5154/hubs/tracking",
   "googleMapsApiKey": "",
   "driverLocationIntervalSeconds": 5,
-  "staleLocationAfterSeconds": 45
+  "staleLocationAfterSeconds": 45,
+  "stripe": {
+    "publishableKey": ""
+  }
 }

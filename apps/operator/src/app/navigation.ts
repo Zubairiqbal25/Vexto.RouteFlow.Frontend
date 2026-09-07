@@ -64,6 +64,35 @@ export const OPERATOR_NAV: readonly NavSection[] = [
     ],
   },
   {
+    label: 'Billing',
+    items: [
+      {
+        label: 'Subscriptions',
+        link: '/billing/subscriptions',
+        icon: 'agreements',
+        permissions: [VextoPermissions.Billing.View],
+      },
+      {
+        label: 'Invoices',
+        link: '/billing/invoices',
+        icon: 'agreements',
+        permissions: [VextoPermissions.Billing.View],
+      },
+      {
+        label: 'Payments',
+        link: '/billing/payments',
+        icon: 'agreements',
+        permissions: [VextoPermissions.Payments.View],
+      },
+      {
+        label: 'Payment Account',
+        link: '/billing/account',
+        icon: 'settings',
+        permissions: [VextoPermissions.Payments.View],
+      },
+    ],
+  },
+  {
     label: 'Management',
     items: [
       {

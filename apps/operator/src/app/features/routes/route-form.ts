@@ -113,6 +113,7 @@ const DIRECTIONS: readonly RouteDirection[] = ['Outbound', 'Return', 'Circular',
         type="submit"
         footer
         form="route-form"
+        (click)="submit()"
         class="vx-btn vx-btn-primary"
         [disabled]="busy()"
       >

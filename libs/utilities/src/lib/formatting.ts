@@ -149,3 +149,32 @@ export function formatMobile(value: string | null | undefined): string {
 
   return match ? `${match[1]} ${match[2]} ${match[3]} ${match[4]}` : trimmed;
 }
+
+/**
+ * Money, as somebody checking a bill reads it: `AED 420.00`.
+ *
+ * The currency code rather than a symbol, and always two decimals. An operator may invoice in more
+ * than one currency, and `420.00` on its own beside `420.00` in another currency is how somebody
+ * pays the wrong amount. A code is unambiguous everywhere; the symbol for a dirham is not.
+ *
+ * Grouped with the browser's locale so a large figure is readable, but the code is never
+ * localised — `AED` is `AED` in every language, and swapping it for a translated name would make
+ * an invoice harder to match against a bank statement.
+ */
+export function formatMoney(
+  amount: number | null | undefined,
+  currency: string | null | undefined,
+): string {
+  if (amount === null || amount === undefined) {
+    // A dash, not a zero. "Nothing is known" and "nothing is owed" are different facts, and a
+    // provider fee that has not been reported yet is the first of them.
+    return '—';
+  }
+
+  const formatted = amount.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  return currency ? `${currency} ${formatted}` : formatted;
+}

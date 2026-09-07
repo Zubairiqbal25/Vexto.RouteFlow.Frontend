@@ -147,7 +147,17 @@ const DAYS: readonly ApiDayOfWeek[] = [
           <vx-field label="To" for="g-to">
             <input id="g-to" type="date" class="vx-input" formControlName="toDate" />
           </vx-field>
-          <button type="submit" class="vx-btn vx-btn-primary" [disabled]="generating()">
+          <!--
+            Wired to (click) as well as the form's (ngSubmit). Clicking a submit button in this app
+            does not raise the form's submit event — the same reason every drawer's save button is
+            wired directly — so relying on implicit submission alone leaves the button inert.
+          -->
+          <button
+            type="submit"
+            class="vx-btn vx-btn-primary"
+            [disabled]="generating()"
+            (click)="run()"
+          >
             <vx-icon name="trips" [size]="16" />
             {{ generating() ? 'Generating…' : 'Generate Trips' }}
           </button>
@@ -226,6 +236,7 @@ const DAYS: readonly ApiDayOfWeek[] = [
         type="submit"
         footer
         form="schedule-form"
+        (click)="save()"
         class="vx-btn vx-btn-primary"
         [disabled]="saving()"
       >

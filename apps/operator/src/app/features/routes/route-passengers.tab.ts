@@ -223,6 +223,7 @@ import { formatDate } from '@vexto/utilities';
         type="submit"
         footer
         form="assign-passenger-form"
+        (click)="save()"
         class="vx-btn vx-btn-primary"
         [disabled]="saving()"
       >

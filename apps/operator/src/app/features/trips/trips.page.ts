@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { DriversApi, RoutesApi, TripsApi, VehiclesApi } from '@vexto/api-client';
-import type { DriverResponse, RouteResponse, TripResponse, VehicleResponse } from '@vexto/models';
+import type { PickerOption, TripResponse } from '@vexto/models';
 import {
   VxEmptyState,
   VxErrorState,
@@ -15,6 +15,7 @@ import { formatDate, formatTime } from '@vexto/utilities';
 import { PagedList } from '../../shared/paged-list';
 
 interface TripFilters extends Record<string, unknown> {
+  search: string;
   serviceDate: string;
   status: string;
   routeId: string;
@@ -56,8 +57,12 @@ interface TripFilters extends Record<string, unknown> {
       [totalCount]="list.total()"
       (pageChange)="list.setPage($event)"
     >
-      <!-- The trips endpoint has no free-text search, so the box is hidden rather than inert. -->
-      <vx-filter-bar toolbar [showSearch]="false">
+      <vx-filter-bar
+        toolbar
+        searchPlaceholder="Search route, driver or plate"
+        searchLabel="Search trips"
+        (searchChange)="list.setFilter({ search: $event })"
+      >
         <input
           filters
           type="date"
@@ -89,7 +94,7 @@ interface TripFilters extends Record<string, unknown> {
         >
           <option value="">All routes</option>
           @for (route of routes(); track route.id) {
-            <option [value]="route.id">{{ route.code }}</option>
+            <option [value]="route.id">{{ route.label }}</option>
           }
         </select>
 
@@ -101,7 +106,7 @@ interface TripFilters extends Record<string, unknown> {
         >
           <option value="">All drivers</option>
           @for (driver of drivers(); track driver.id) {
-            <option [value]="driver.id">{{ driver.firstName }} {{ driver.lastName }}</option>
+            <option [value]="driver.id">{{ driver.label }}</option>
           }
         </select>
 
@@ -113,7 +118,7 @@ interface TripFilters extends Record<string, unknown> {
         >
           <option value="">All vehicles</option>
           @for (vehicle of vehicles(); track vehicle.id) {
-            <option [value]="vehicle.id">{{ vehicle.plateNumber }}</option>
+            <option [value]="vehicle.id">{{ vehicle.label }}</option>
           }
         </select>
 
@@ -187,13 +192,14 @@ export class TripsPage {
   protected readonly date = formatDate;
   protected readonly time = formatTime;
 
-  protected readonly routes = signal<RouteResponse[]>([]);
-  protected readonly drivers = signal<DriverResponse[]>([]);
-  protected readonly vehicles = signal<VehicleResponse[]>([]);
+  protected readonly routes = signal<PickerOption[]>([]);
+  protected readonly drivers = signal<PickerOption[]>([]);
+  protected readonly vehicles = signal<PickerOption[]>([]);
 
   protected readonly list = new PagedList<TripResponse, TripFilters>(
     (filters, page, pageSize) =>
       this.api.list({
+        search: filters.search || undefined,
         serviceDate: filters.serviceDate || undefined,
         status: filters.status || undefined,
         routeId: filters.routeId || undefined,
@@ -203,6 +209,7 @@ export class TripsPage {
         pageSize,
       }),
     {
+      search: '',
       serviceDate: new Date().toISOString().slice(0, 10),
       status: '',
       routeId: '',
@@ -211,19 +218,26 @@ export class TripsPage {
     },
   );
 
+  /**
+   * The filter dropdowns come from the picker endpoints, not from paging the full lists.
+   *
+   * They used to ask for a hundred rows of each and hope that covered it, which silently dropped
+   * the 101st route from the filter and shipped three full datasets to render three selects. A
+   * picker returns id, label and a disambiguator, bounded server-side.
+   */
   constructor() {
-    this.routesApi.list({ pageSize: 100 }).subscribe({
-      next: (result) => this.routes.set(result.items),
+    this.routesApi.picker({ pageSize: 50 }).subscribe({
+      next: (options) => this.routes.set(options),
       error: () => this.routes.set([]),
     });
 
-    this.driversApi.list({ status: 'Active', pageSize: 100 }).subscribe({
-      next: (result) => this.drivers.set(result.items),
+    this.driversApi.picker({ pageSize: 50 }).subscribe({
+      next: (options) => this.drivers.set(options),
       error: () => this.drivers.set([]),
     });
 
-    this.vehiclesApi.list({ status: 'Active', pageSize: 100 }).subscribe({
-      next: (result) => this.vehicles.set(result.items),
+    this.vehiclesApi.picker({ pageSize: 50 }).subscribe({
+      next: (options) => this.vehicles.set(options),
       error: () => this.vehicles.set([]),
     });
   }

@@ -6,16 +6,18 @@ import {
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DriversApi, VextoApiError } from '@vexto/api-client';
 import type { DriverResponse } from '@vexto/models';
+import { InvitePanel, type InvitationGateway } from '../../shared/invite-panel';
 import { ToastService, VxField, VxFormSection, VxModal } from '@vexto/ui';
 
 @Component({
   selector: 'vexto-driver-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, VxModal, VxField, VxFormSection],
+  imports: [ReactiveFormsModule, VxModal, VxField, VxFormSection, InvitePanel],
   template: `
     <vx-modal
       variant="drawer"
@@ -102,6 +104,17 @@ import { ToastService, VxField, VxFormSection, VxModal } from '@vexto/ui';
         </vx-form-section>
       </form>
 
+      <!-- Only for a driver who already exists; there is nothing to attach an account to yet. -->
+      @if (driver(); as existing) {
+        <div class="mt-6 border-t border-line-subtle pt-5">
+          <vexto-invite-panel
+            #invitePanel
+            [gateway]="inviteGateway(existing.id)"
+            [subject]="existing.firstName"
+          />
+        </div>
+      }
+
       <button
         type="button"
         footer
@@ -115,6 +128,7 @@ import { ToastService, VxField, VxFormSection, VxModal } from '@vexto/ui';
         type="submit"
         footer
         form="driver-form"
+        (click)="submit()"
         class="vx-btn vx-btn-primary"
         [disabled]="busy()"
       >
@@ -129,6 +143,9 @@ export class DriverForm {
 
   readonly open = input(false);
   readonly driver = input<DriverResponse | null>(null);
+
+  /** The panel, so its status can be loaded once the drawer opens on an existing driver. */
+  private readonly invitePanel = viewChild<InvitePanel>('invitePanel');
   readonly dismissed = output<void>();
   readonly saved = output<DriverResponse>();
 
@@ -166,7 +183,22 @@ export class DriverForm {
       });
       this.formError.set(null);
       this.serverErrors.set(null);
+
+      // Loaded when the drawer opens on an existing driver. Not rendered at all while creating one.
+      if (existing) {
+        this.invitePanel()?.load();
+      }
     });
+  }
+
+  /** The four invitation calls for this driver. Same flow as passengers; different URLs. */
+  protected inviteGateway(driverId: string): InvitationGateway {
+    return {
+      status: () => this.api.invitationStatus(driverId),
+      invite: (email: string) => this.api.invite(driverId, email),
+      resend: () => this.api.resendInvitation(driverId),
+      revoke: () => this.api.revokeInvitation(driverId),
+    };
   }
 
   protected fieldError(control: string): string | null {

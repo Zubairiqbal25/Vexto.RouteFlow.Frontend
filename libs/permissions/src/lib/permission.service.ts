@@ -17,6 +17,13 @@ export const VextoPermissions = {
   Routes: { View: 'Routes.View', Manage: 'Routes.Manage' },
   Trips: { View: 'Trips.View', Manage: 'Trips.Manage' },
   Tracking: { View: 'Tracking.View' },
+  Dashboard: { View: 'Dashboard.View' },
+  Settings: { View: 'Settings.View', Manage: 'Settings.Manage' },
+  Notifications: { View: 'Notifications.View' },
+  /* What somebody should be charged: subscriptions and invoices. */
+  Billing: { View: 'Billing.View', Manage: 'Billing.Manage' },
+
+  /* Money that has already moved: the payment list, and refunds. */
   Payments: { View: 'Payments.View', Manage: 'Payments.Manage' },
   Reports: { View: 'Reports.View' },
 } as const;

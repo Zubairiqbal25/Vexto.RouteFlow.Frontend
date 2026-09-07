@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { DriverApi, VextoApiError } from '@vexto/api-client';
-import type { DriverTripDetail, TripPassenger } from '@vexto/models';
+import type { DriverNextStopDetail, DriverTripDetail, TripPassenger } from '@vexto/models';
 import {
   ConfirmService,
   ToastService,
@@ -93,6 +93,43 @@ import { LocationPublisher } from './location-publisher.service';
                 <p class="mt-2 text-meta text-ink-muted">
                   Allow location for this site in your browser settings so your dispatcher can see
                   the bus. Boarding still works without it.
+                </p>
+              }
+
+              @if (nextStop(); as stop) {
+                <div class="mt-5 rounded-xl border border-line-subtle bg-surface-muted p-4">
+                  <p class="vx-section-label">Next stop</p>
+                  <p class="mt-1 text-body font-semibold text-ink">
+                    @if (stop.sequence !== null) {
+                      {{ stop.sequence }}.
+                    }
+                    {{ stop.name ?? 'Unnamed stop' }}
+                  </p>
+                  <p class="mt-0.5 text-meta text-ink-muted">
+                    {{ stop.expectedPassengers.length }}
+                    {{ stop.expectedPassengers.length === 1 ? 'passenger' : 'passengers' }} waiting
+                  </p>
+
+                  @if (navigationUrl(); as url) {
+                    <!--
+                      An external link into whichever maps app the device has, not an embedded
+                      navigator. Building one would mean rebuilding a routing engine, voice
+                      guidance and offline tiles that the driver already has and already trusts.
+                    -->
+                    <a
+                      class="vx-btn vx-btn-secondary vx-btn-touch mt-3 w-full"
+                      [href]="url"
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      <vx-icon name="live" [size]="18" />
+                      Navigate to stop
+                    </a>
+                  }
+                </div>
+              } @else if (nextStopLoaded()) {
+                <p class="mt-5 rounded-xl border border-line-subtle px-4 py-3 text-body text-ink-muted">
+                  Every pickup on this route has been dealt with. You can complete the trip.
                 </p>
               }
 
@@ -188,9 +225,30 @@ export class DriverTripPage {
   protected readonly time = formatTime;
 
   protected readonly detail = signal<DriverTripDetail | null>(null);
+  protected readonly nextStop = signal<DriverNextStopDetail | null>(null);
+  protected readonly nextStopLoaded = signal(false);
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
+
+  /**
+   * A universal maps link for the next stop.
+   *
+   * `google.com/maps/dir/?api=1` is handled by the Google Maps app on Android and iOS, and falls
+   * back to the browser everywhere else. Apple Maps also intercepts it on iOS when it is the
+   * default. One URL rather than sniffing the platform: the guess is what breaks, not the link.
+   */
+  protected readonly navigationUrl = computed(() => {
+    const stop = this.nextStop();
+
+    if (!stop || stop.latitude === null || stop.longitude === null) {
+      return null;
+    }
+
+    const destination = encodeURIComponent(`${stop.latitude},${stop.longitude}`);
+
+    return `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
+  });
 
   protected readonly passengers = computed(() => this.detail()?.passengers ?? []);
 
@@ -229,12 +287,45 @@ export class DriverTripPage {
       next: (detail) => {
         this.detail.set(detail);
         this.loading.set(false);
+
+        // Only a running trip has a next stop worth showing. Before it starts the answer is the
+        // first stop, which the driver can already see on the manifest.
+        if (detail.trip.status === 'Started') {
+          this.loadNextStop();
+        } else {
+          this.nextStop.set(null);
+          this.nextStopLoaded.set(false);
+        }
       },
       error: (error: unknown) => {
         this.loading.set(false);
         this.error.set(
           error instanceof VextoApiError ? error.message : 'We could not load this trip.',
         );
+      },
+    });
+  }
+
+  /**
+   * Reloaded after every boarding, because boarding the last person at a stop is exactly what
+   * moves the driver on to the next one.
+   */
+  /** Only meaningful while the trip is running; ignored otherwise. */
+  private refreshNextStop(): void {
+    if (this.detail()?.trip.status === 'Started') {
+      this.loadNextStop();
+    }
+  }
+
+  private loadNextStop(): void {
+    this.api.nextStop(this.tripId()).subscribe({
+      next: (result) => {
+        this.nextStop.set(result.stop);
+        this.nextStopLoaded.set(true);
+      },
+      error: () => {
+        this.nextStop.set(null);
+        this.nextStopLoaded.set(false);
       },
     });
   }
@@ -266,7 +357,8 @@ export class DriverTripPage {
       title: 'Complete this trip?',
       message:
         outstanding > 0
-          ? `${outstanding} passengers have not been marked as boarded or no-show. Completing the trip closes attendance.`
+          ? `${outstanding} ${outstanding === 1 ? 'passenger has' : 'passengers have'} not been `
+            + 'marked as boarded or no-show. Completing the trip closes attendance.'
           : 'Attendance will be closed and location sharing will stop.',
       confirmLabel: 'Complete trip',
       cancelLabel: 'Not yet',
@@ -308,8 +400,15 @@ export class DriverTripPage {
     });
   }
 
-  /** Swaps one row in place; reloading the whole trip would scroll the driver back to the top. */
+  /**
+   * Swaps one row in place; reloading the whole trip would scroll the driver back to the top.
+   *
+   * The next stop is refreshed alongside it, because dealing with the last person at a stop is
+   * exactly what moves the driver on to the next one.
+   */
   private replace(updated: TripPassenger): void {
+    this.refreshNextStop();
+
     this.detail.update((current) =>
       current
         ? {

@@ -1,7 +1,8 @@
 import { Component } from '@angular/core';
 import type { Routes } from '@angular/router';
 import { anonymousGuard, authGuard } from '@vexto/auth';
-import { VxAuthShell, VxLoginPage, VxMobileShell } from '@vexto/layouts';
+import { VxAuthShell, VxLoginPage,
+  VxAcceptInvitationPage, VxMobileShell } from '@vexto/layouts';
 
 /** The driver app has one section, so the shell carries no tab bar. */
 @Component({
@@ -13,10 +14,24 @@ export class DriverShell {}
 
 export const routes: Routes = [
   {
+    // Redeeming an invitation is deliberately outside the anonymous guard. Somebody who is already
+    // signed in on this device may still be holding a link for a different account — a driver
+    // setting up a passenger's phone, say — and bouncing them to the dashboard would strand it.
+    path: 'accept-invitation',
+    component: VxAcceptInvitationPage,
+    title: 'Set your password · Vexto Driver',
+  },
+  {
     path: '',
     component: VxAuthShell,
     canActivate: [anonymousGuard],
+
+    // Where the guard sends somebody who is already signed in. It must not be '/', which is the
+    // URL being guarded — see anonymousGuard.
+    data: { home: '/trips' },
     children: [
+      // Landing on '/' signed out must show the sign-in screen, not an empty auth shell.
+      { path: '', pathMatch: 'full', redirectTo: 'login' },
       {
         path: 'login',
         component: VxLoginPage,

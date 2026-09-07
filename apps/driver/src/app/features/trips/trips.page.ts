@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { RouterLink } from '@angular/router';
 import { DriverApi, VextoApiError } from '@vexto/api-client';
 import type { DriverTrip } from '@vexto/models';
+import { PushNotifications, VxPushToggle } from '@vexto/push';
 import { VxEmptyState, VxErrorState, VxIcon, VxSkeleton, VxStatusBadge } from '@vexto/ui';
 import { formatDate, formatTime } from '@vexto/utilities';
 
@@ -15,11 +16,19 @@ import { formatDate, formatTime } from '@vexto/utilities';
 @Component({
   selector: 'vexto-driver-trips-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, VxEmptyState, VxErrorState, VxIcon, VxSkeleton, VxStatusBadge],
+  imports: [RouterLink, VxEmptyState, VxErrorState, VxIcon, VxPushToggle, VxSkeleton, VxStatusBadge],
   template: `
     <div class="p-4">
       <h1 class="text-lg font-semibold tracking-tight text-ink">Today's trips</h1>
       <p class="mt-1 text-body text-ink-muted">{{ today() }}</p>
+
+      <!--
+        Offered here rather than mid-trip: a driver about to set off has a moment to decide, and one
+        halfway through a route does not. Renders nothing when push is unconfigured or unsupported.
+      -->
+      <div class="mt-4">
+        <vx-push-toggle />
+      </div>
 
       @if (loading()) {
         <div class="mt-5 flex flex-col gap-4">
@@ -112,6 +121,10 @@ export class DriverTripsPage {
 
   constructor() {
     this.load();
+
+    // Re-registers an already-permitted device, because Firebase rotates tokens on its own
+    // schedule. Asks the browser for nothing, so no prompt is ever fired on load.
+    void inject(PushNotifications).refresh();
   }
 
   protected today(): string {

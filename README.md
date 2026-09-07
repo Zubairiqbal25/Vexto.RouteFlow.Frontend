@@ -10,6 +10,8 @@ One Angular workspace, three applications:
 
 Architecture: [../docs/frontend-architecture.md](../docs/frontend-architecture.md).
 Design system: [../docs/design-system.md](../docs/design-system.md).
+Running everything locally, seed included: [../Backend/docs/pilot-setup.md](../Backend/docs/pilot-setup.md).
+Billing and payments: [../Backend/docs/billing.md](../Backend/docs/billing.md), [../Backend/docs/payments.md](../Backend/docs/payments.md).
 
 ---
 
@@ -52,7 +54,7 @@ npm run start:operator | start:driver | start:passenger
 npm run build                    # production builds of all three
 npm run lint
 npm run test -- --watch=false    # Vitest
-npm run e2e                      # Playwright — needs a running, seeded API
+npm run e2e                      # Playwright — needs a running, seeded API; see docs §16
 npm run api:generate             # regenerate types from the committed OpenAPI document
 ```
 

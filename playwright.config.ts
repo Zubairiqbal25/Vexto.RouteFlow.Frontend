@@ -14,6 +14,17 @@ const OPERATOR_URL = process.env['VEXTO_OPERATOR_URL'] ?? 'http://localhost:4200
 const DRIVER_URL = process.env['VEXTO_DRIVER_URL'] ?? 'http://localhost:4201';
 const PASSENGER_URL = process.env['VEXTO_PASSENGER_URL'] ?? 'http://localhost:4202';
 
+/**
+ * The suffix that makes this run's records its own, fixed here rather than in the fixtures.
+ *
+ * Playwright runs each project in its own worker process, and a value derived from the clock in a
+ * module the workers import is therefore a *different* value in each of them: the operator project
+ * would create route E2E-950771 and the driver project would then look for E2E-128742 and find
+ * nothing. This file is loaded once, in the parent process, and workers inherit its environment —
+ * so setting it here is what makes one run one story.
+ */
+process.env['VEXTO_RUN_ID'] ??= String(Date.now()).slice(-6);
+
 export default defineConfig({
   testDir: './e2e',
   // The pilot journey is one story told across three apps: a passenger cannot be boarded before a
@@ -64,6 +75,27 @@ export default defineConfig({
       testMatch: /driver.complete.spec.ts/u,
       dependencies: ['operator-verify'],
       use: { ...devices['iPad (gen 7) landscape'], baseURL: DRIVER_URL },
+    },
+
+    // The money half of the pilot, after the transport half. It runs against the same seeded
+    // passenger, so the invoice the passenger app pays is one this run raised.
+    {
+      name: 'billing-operator',
+      testMatch: /billing.operator.spec.ts/u,
+      dependencies: ['driver-complete'],
+      use: { ...devices['Desktop Chrome'], baseURL: OPERATOR_URL },
+    },
+    {
+      name: 'billing-passenger',
+      testMatch: /billing.passenger.spec.ts/u,
+      dependencies: ['billing-operator'],
+      use: { ...devices['Pixel 7'], baseURL: PASSENGER_URL },
+    },
+    {
+      name: 'billing-reconcile',
+      testMatch: /billing.reconcile.spec.ts/u,
+      dependencies: ['billing-passenger'],
+      use: { ...devices['Desktop Chrome'], baseURL: OPERATOR_URL },
     },
   ],
 

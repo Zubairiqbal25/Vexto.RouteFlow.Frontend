@@ -231,10 +231,17 @@ export class VxRowActions {
   }
 }
 
-/** A single item inside `vx-row-actions`. */
+/**
+ * A single item inside `vx-row-actions`.
+ *
+ * The host is `display: block` deliberately. Left as the default `inline`, it lays out around its
+ * own full-width button rather than containing it, so the host sits over the button and swallows
+ * the pointer — the menu item looks right and does nothing when clicked.
+ */
 @Component({
   selector: 'vx-row-action',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'block' },
   imports: [VxIcon],
   template: `
     <button
