@@ -13,7 +13,8 @@
     "test": "ng test operator",
     "lint": "eslint .",
     "api:generate": "npx -y openapi-typescript@7 ../Backend/docs/api/openapi-v1.json -o libs/models/src/lib/generated/vexto-api.ts",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "e2e:visual": "playwright test --config playwright.visual.config.ts"
   },
   "dependencies": {
     "@angular/cdk": "^22.0.0",

@@ -26,9 +26,12 @@ layer(base);
   --color-accent: var(--vexto-accent);
 
   --color-bg: var(--vexto-bg);
+  --color-bg-subtle: var(--vexto-bg-subtle);
   --color-surface: var(--vexto-surface);
   --color-surface-muted: var(--vexto-surface-muted);
   --color-surface-hover: var(--vexto-surface-hover);
+  --color-surface-raised: var(--vexto-surface-raised);
+  --color-surface-sunken: var(--vexto-surface-sunken);
 
   --color-nav: var(--vexto-nav-bg);
   --color-nav-raised: var(--vexto-nav-bg-raised);
@@ -45,6 +48,19 @@ layer(base);
   --color-warning: var(--vexto-warning);
   --color-danger: var(--vexto-danger);
   --color-info: var(--vexto-info);
+  --color-neutral: var(--vexto-neutral);
+
+  --color-success-soft: var(--vexto-success-soft);
+  --color-warning-soft: var(--vexto-warning-soft);
+  --color-danger-soft: var(--vexto-danger-soft);
+  --color-info-soft: var(--vexto-info-soft);
+  --color-neutral-soft: var(--vexto-neutral-soft);
+
+  --color-success-text: var(--vexto-success-text);
+  --color-warning-text: var(--vexto-warning-text);
+  --color-danger-text: var(--vexto-danger-text);
+  --color-info-text: var(--vexto-info-text);
+  --color-neutral-text: var(--vexto-neutral-text);
 
   --radius-card: var(--vexto-radius-xl);
   --radius-control: var(--vexto-radius-md);
@@ -204,7 +220,7 @@ layer(base);
 
   .vx-btn-danger {
     background: var(--vexto-danger);
-    color: #fff;
+    color: var(--vexto-on-status);
   }
 
   .vx-btn-danger:hover:not(:disabled) {
@@ -424,9 +440,9 @@ layer(base);
   .vx-skeleton {
     background: linear-gradient(
       90deg,
-      var(--vexto-surface-hover) 25%,
-      #edf0f4 37%,
-      var(--vexto-surface-hover) 63%
+      var(--vexto-skeleton-base) 25%,
+      var(--vexto-skeleton-shine) 37%,
+      var(--vexto-skeleton-base) 63%
     );
     background-size: 400% 100%;
     border-radius: var(--vexto-radius-sm);
@@ -463,7 +479,7 @@ layer(base);
 
   .vx-nav-item-active {
     background: var(--vexto-nav-item-active);
-    color: #fff;
+    color: var(--vexto-nav-item-active-text);
   }
 
   .vx-nav-item-active .vx-nav-icon {
@@ -485,5 +501,54 @@ layer(base);
   .vx-scroll::-webkit-scrollbar-thumb {
     background: var(--vexto-border-strong);
     border-radius: 999px;
+  }
+}
+
+/* -----------------------------------------------------------------------------------------------
+ * Mobile tab bar.
+ *
+ * The active tab is marked twice over: the label and icon take the brand colour, and a short rule
+ * appears above them. Colour alone is exactly what disappears for a colour-blind driver glancing at
+ * a tablet in daylight.
+ * --------------------------------------------------------------------------------------------- */
+@layer components {
+  .vx-tab-active {
+    color: var(--vexto-primary);
+  }
+
+  .vx-tab-active::before {
+    content: "";
+    position: absolute;
+    inset-inline: 25%;
+    top: 0;
+    height: 2px;
+    border-radius: 0 0 999px 999px;
+    background: var(--vexto-primary);
+  }
+}
+
+/* -----------------------------------------------------------------------------------------------
+ * Checkbox.
+ *
+ * `accent-color` rather than a hand-built control: the browser keeps the focus ring, the
+ * indeterminate state, the keyboard behaviour and the platform's own hit target, and Vexto only has
+ * to supply the brand colour. A div dressed as a checkbox is how a form stops being operable by
+ * keyboard, and there is nothing here worth that trade.
+ *
+ * The size is bumped from the browser default because the driver and passenger apps are touched
+ * rather than clicked.
+ * --------------------------------------------------------------------------------------------- */
+@layer components {
+  .vx-checkbox {
+    width: 1.0625rem;
+    height: 1.0625rem;
+    accent-color: var(--vexto-primary);
+    cursor: pointer;
+    flex: none;
+  }
+
+  .vx-checkbox:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
   }
 }

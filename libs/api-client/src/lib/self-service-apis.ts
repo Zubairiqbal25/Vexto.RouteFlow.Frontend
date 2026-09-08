@@ -18,6 +18,7 @@ import type {
   PassengerEta,
   PassengerInvoice,
   PassengerInvoiceStatus,
+  PassengerAccessStatus,
   PassengerProfile,
   PassengerTrip,
   Payment,
@@ -226,6 +227,17 @@ export class PassengerSelfApi {
 
   profile(): Observable<PassengerProfile> {
     return this.http.get('/api/v1/passenger/me');
+  }
+
+  /**
+   * Whether this passenger may currently travel, and what is outstanding if not.
+   *
+   * Reachable while blocked, and that is the point: a passenger who cannot board needs to be told
+   * why, shown the amount, and given somewhere to pay it. Unlike the driver's manifest, this
+   * response carries the figures — it is the passenger's own money.
+   */
+  accessStatus(): Observable<PassengerAccessStatus> {
+    return this.http.get('/api/v1/passenger/me/access-status');
   }
 
   myTrips(

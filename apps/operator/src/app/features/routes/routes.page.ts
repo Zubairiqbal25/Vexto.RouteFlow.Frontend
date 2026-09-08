@@ -9,11 +9,16 @@ import {
   VxFilterBar,
   VxIcon,
   VxPageHeader,
+  VxCardGrid,
+  VxSkeletonCard,
   VxSkeletonTable,
   VxStatusBadge,
   VxTableShell,
+  VxViewSwitcher,
 } from '@vexto/ui';
+import { listViewPreference } from '../../shared/list-view';
 import { PagedList } from '../../shared/paged-list';
+import { RouteCard } from './route-card';
 import { RouteForm } from './route-form';
 
 interface RouteFilters extends Record<string, unknown> {
@@ -43,9 +48,13 @@ interface RouteFilters extends Record<string, unknown> {
     VxFilterBar,
     VxIcon,
     VxPageHeader,
+    RouteCard,
+    VxCardGrid,
+    VxSkeletonCard,
     VxSkeletonTable,
     VxStatusBadge,
     VxTableShell,
+    VxViewSwitcher,
   ],
   template: `
     <vx-page-header
@@ -59,6 +68,7 @@ interface RouteFilters extends Record<string, unknown> {
     </vx-page-header>
 
     <vx-table-shell
+      [layout]="layout()"
       [loading]="list.loading()"
       [error]="list.error()"
       [isEmpty]="list.isEmpty()"
@@ -99,12 +109,23 @@ interface RouteFilters extends Record<string, unknown> {
           <option value="Suspended">Suspended</option>
         </select>
 
-        <span trailing class="text-meta text-ink-muted">
+        <span trailing class="flex items-center gap-3">
+          <vx-view-switcher [view]="layout()" (viewChange)="setView($event)" />
+        </span>
+        <span trailing class="hidden text-meta text-ink-muted sm:inline">
           {{ list.total() }} {{ list.total() === 1 ? 'route' : 'routes' }}
         </span>
       </vx-filter-bar>
 
-      <vx-skeleton-table loading [columns]="8" />
+      <div loading>
+        @if (layout() === 'cards') {
+          <div class="p-4 sm:p-5">
+            <vx-card-grid><vx-skeleton-card [count]="6" /></vx-card-grid>
+          </div>
+        } @else {
+          <vx-skeleton-table [columns]="8" />
+        }
+      </div>
 
       <vx-error-state
         error
@@ -126,6 +147,17 @@ interface RouteFilters extends Record<string, unknown> {
         (action)="add()"
       />
 
+      @if (layout() === 'cards') {
+        <vx-card-grid>
+          @for (item of list.items(); track item.route.id) {
+            <vexto-route-card
+              [item]="item"
+              (opened)="open(item.route)"
+              (action)="onCardAction(item, $event)"
+            />
+          }
+        </vx-card-grid>
+      } @else {
       <table class="vx-table">
         <thead>
           <tr>
@@ -178,6 +210,7 @@ interface RouteFilters extends Record<string, unknown> {
           }
         </tbody>
       </table>
+      }
     </vx-table-shell>
 
     <vexto-route-form
@@ -194,6 +227,9 @@ export class RoutesPage {
 
   protected readonly manage = VextoPermissions.Routes.Manage;
   protected readonly formOpen = signal(false);
+
+  private readonly preference = listViewPreference('routes');
+  protected readonly layout = this.preference.view;
 
   protected readonly list = new PagedList<RouteListItem, RouteFilters>(
     (filters, page, pageSize) =>
@@ -227,5 +263,22 @@ export class RoutesPage {
 
   protected open(route: RouteResponse): void {
     void this.router.navigate(['/routes', route.id]);
+  }
+
+  protected setView(view: 'cards' | 'table'): void {
+    this.preference.set(view);
+  }
+
+  /**
+   * Routes an overflow-menu choice.
+   *
+   * Every one of these lands on the route workspace rather than acting from the card: generating
+   * trips needs a date range, and changing status from a grid is the kind of one-click mistake that
+   * takes a service off the road.
+   */
+  protected onCardAction(item: RouteListItem, action: string): void {
+    const target = action === 'generate' ? ['/routes', item.route.id, 'trips'] : ['/routes', item.route.id];
+
+    void this.router.navigate(target);
   }
 }

@@ -93,6 +93,48 @@ import { ToastService, VxPageHeader, VxSectionCard, VxStatusBadge } from '@vexto
                 </select>
               </label>
 
+              <div class="sm:col-span-2 border-t border-line-subtle pt-5">
+                <h3 class="vx-section-label">Passenger payments</h3>
+                <p class="mt-1 text-meta text-ink-muted">
+                  How long a passenger may keep travelling after an invoice falls due, and whether
+                  running out of grace actually stops them boarding.
+                </p>
+              </div>
+
+              <label class="block">
+                <span class="vx-section-label">Grace period (days)</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="90"
+                  class="vx-input mt-1 w-full"
+                  [disabled]="!can(perms.Settings.Manage) || saving()"
+                  [value]="draft().passengerPaymentGracePeriodDays"
+                  (change)="patch({ passengerPaymentGracePeriodDays: number($event) })"
+                />
+                <span class="mt-1 block text-meta text-ink-muted">
+                  0 means access stops the day after the due date.
+                </span>
+              </label>
+
+              <label class="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  class="vx-checkbox mt-1"
+                  [disabled]="!can(perms.Settings.Manage) || saving()"
+                  [checked]="draft().blockPassengersWithOverduePayments"
+                  (change)="patch({ blockPassengersWithOverduePayments: checked($event) })"
+                />
+                <span>
+                  <span class="vx-section-label">Block travel when grace runs out</span>
+                  <span class="mt-1 block text-meta text-ink-muted">
+                    Off means an overdue passenger is flagged to you and to the driver, and is still
+                    carried. On means the driver's manifest shows them as blocked. Either way they
+                    can still sign in to see and pay what they owe.
+                  </span>
+                </span>
+              </label>
+
               @if (can(perms.Settings.Manage)) {
                 <div class="sm:col-span-2 flex flex-wrap gap-2 border-t border-line-subtle pt-5">
                   <button type="submit"
@@ -209,6 +251,8 @@ export class SettingsPage {
     defaultCurrency: 'AED',
     dateFormat: 'dd/MM/yyyy',
     language: 'en',
+    passengerPaymentGracePeriodDays: 0,
+    blockPassengersWithOverduePayments: false,
   });
 
   constructor() {
@@ -225,6 +269,17 @@ export class SettingsPage {
 
   protected value(event: Event): string {
     return (event.target as HTMLSelectElement).value;
+  }
+
+  /** Clamped to the range the API accepts, so a typed "999" is corrected rather than rejected. */
+  protected number(event: Event): number {
+    const parsed = Number.parseInt((event.target as HTMLInputElement).value, 10);
+
+    return Number.isNaN(parsed) ? 0 : Math.min(Math.max(parsed, 0), 90);
+  }
+
+  protected checked(event: Event): boolean {
+    return (event.target as HTMLInputElement).checked;
   }
 
   protected patch(change: Partial<UpdateTenantSettingsCommand>): void {
@@ -282,6 +337,8 @@ export class SettingsPage {
       defaultCurrency: settings.defaultCurrency,
       dateFormat: settings.dateFormat,
       language: settings.language,
+      passengerPaymentGracePeriodDays: settings.passengerPaymentGracePeriodDays,
+      blockPassengersWithOverduePayments: settings.blockPassengersWithOverduePayments,
     };
   }
 

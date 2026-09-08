@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { PassengersApi } from '@vexto/api-client';
-import type { PassengerResponse } from '@vexto/models';
-import { CanDirective, VextoPermissions } from '@vexto/permissions';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { PassengerAccessApi, PassengersApi } from '@vexto/api-client';
+import type { OperatorPassengerAccess, PassengerResponse } from '@vexto/models';
+import { CanDirective, PermissionService, VextoPermissions } from '@vexto/permissions';
 import {
   ConfirmService,
   ToastService,
@@ -13,12 +13,18 @@ import {
   VxPageHeader,
   VxRowAction,
   VxRowActions,
+  VxCardGrid,
+  VxSkeletonCard,
   VxSkeletonTable,
   VxStatusBadge,
   VxTableShell,
+  VxViewSwitcher,
 } from '@vexto/ui';
 import { formatDate, formatMobile } from '@vexto/utilities';
+import { listViewPreference } from '../../shared/list-view';
 import { PagedList } from '../../shared/paged-list';
+import { PassengerCard } from './passenger-card';
+import { PassengerDrawer } from './passenger-drawer';
 import { PassengerForm } from './passenger-form';
 
 interface PassengerFilters extends Record<string, unknown> {
@@ -40,9 +46,14 @@ interface PassengerFilters extends Record<string, unknown> {
     VxPageHeader,
     VxRowAction,
     VxRowActions,
+    VxCardGrid,
+    VxSkeletonCard,
     VxSkeletonTable,
     VxStatusBadge,
     VxTableShell,
+    VxViewSwitcher,
+    PassengerCard,
+    PassengerDrawer,
   ],
   template: `
     <vx-page-header
@@ -56,6 +67,7 @@ interface PassengerFilters extends Record<string, unknown> {
     </vx-page-header>
 
     <vx-table-shell
+      [layout]="layout()"
       [loading]="list.loading()"
       [error]="list.error()"
       [isEmpty]="list.isEmpty()"
@@ -83,12 +95,23 @@ interface PassengerFilters extends Record<string, unknown> {
           <option value="Suspended">Suspended</option>
         </select>
 
-        <span trailing class="text-meta text-ink-muted">
-          {{ list.total() }} {{ list.total() === 1 ? 'passenger' : 'passengers' }}
+        <span trailing class="flex items-center gap-3">
+          <span class="hidden text-meta text-ink-muted sm:inline">
+            {{ list.total() }} {{ list.total() === 1 ? 'passenger' : 'passengers' }}
+          </span>
+          <vx-view-switcher [view]="layout()" (viewChange)="setView($event)" />
         </span>
       </vx-filter-bar>
 
-      <vx-skeleton-table loading [columns]="6" />
+      <div loading>
+        @if (layout() === 'cards') {
+          <div class="p-4 sm:p-5">
+            <vx-card-grid><vx-skeleton-card [count]="6" /></vx-card-grid>
+          </div>
+        } @else {
+          <vx-skeleton-table [columns]="6" />
+        }
+      </div>
 
       <vx-error-state
         error
@@ -110,6 +133,19 @@ interface PassengerFilters extends Record<string, unknown> {
         (action)="add()"
       />
 
+      @if (layout() === 'cards') {
+        <vx-card-grid>
+          @for (passenger of list.items(); track passenger.id) {
+            <vexto-passenger-card
+              [passenger]="passenger"
+              [access]="accessFor(passenger.id)"
+              [selected]="inspected()?.id === passenger.id"
+              (opened)="inspect(passenger)"
+              (action)="onCardAction(passenger, $event)"
+            />
+          }
+        </vx-card-grid>
+      } @else {
       <table class="vx-table">
         <thead>
           <tr>
@@ -157,7 +193,15 @@ interface PassengerFilters extends Record<string, unknown> {
           }
         </tbody>
       </table>
+      }
     </vx-table-shell>
+
+    <vexto-passenger-drawer
+      [passenger]="inspected()"
+      [access]="inspected() ? accessFor(inspected()!.id) : null"
+      (closed)="inspected.set(null)"
+      (edit)="editFromDrawer($event)"
+    />
 
     <vexto-passenger-form
       [open]="formOpen()"
@@ -169,10 +213,27 @@ interface PassengerFilters extends Record<string, unknown> {
 })
 export class PassengersPage {
   private readonly api = inject(PassengersApi);
+  private readonly accessApi = inject(PassengerAccessApi);
+  private readonly permissions = inject(PermissionService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
 
   protected readonly manage = VextoPermissions.Passengers.Manage;
+
+  private readonly preference = listViewPreference('passengers');
+  protected readonly layout = this.preference.view;
+
+  /**
+   * Billing state per passenger, fetched once per page rather than once per card.
+   *
+   * Only when the signed-in user holds `Billing.View`: a dispatcher can see a passenger and must
+   * not see what they owe, and the card renders without the access line rather than with a
+   * placeholder describing what they may not know.
+   */
+  private readonly access = signal<ReadonlyMap<string, OperatorPassengerAccess>>(new Map());
+
+  /** The passenger shown in the quick-view drawer. Null is the normal state. */
+  protected readonly inspected = signal<PassengerResponse | null>(null);
 
   protected readonly formOpen = signal(false);
   protected readonly editing = signal<PassengerResponse | null>(null);
@@ -190,6 +251,60 @@ export class PassengersPage {
 
   protected readonly mobile = formatMobile;
   protected readonly created = formatDate;
+
+  constructor() {
+    // One batched request per page of results. Asking per card would be the N+1 the batch endpoint
+    // exists to prevent.
+    effect(() => {
+      const passengers = this.list.items();
+
+      if (passengers.length === 0 || !this.permissions.has(VextoPermissions.Billing.View)) {
+        return;
+      }
+
+      this.accessApi.forMany(passengers.map((passenger) => passenger.id)).subscribe({
+        next: (rows) => this.access.set(new Map(rows.map((row) => [row.passengerId, row]))),
+
+        // A failure here must not break the list. The cards simply show no access line.
+        error: () => this.access.set(new Map()),
+      });
+    });
+  }
+
+  protected inspect(passenger: PassengerResponse): void {
+    this.inspected.set(passenger);
+  }
+
+  /** The drawer is the shortcut; editing is still the record's own form. */
+  protected editFromDrawer(passenger: PassengerResponse): void {
+    this.inspected.set(null);
+    this.edit(passenger);
+  }
+
+  protected setView(view: 'cards' | 'table'): void {
+    this.preference.set(view);
+  }
+
+  protected accessFor(passengerId: string): OperatorPassengerAccess | null {
+    return this.access().get(passengerId) ?? null;
+  }
+
+  /** Routes an overflow-menu choice to the same handlers the table rows use. */
+  protected onCardAction(passenger: PassengerResponse, action: string): void {
+    const handlers: Record<string, () => void> = {
+      edit: () => this.edit(passenger),
+      invite: () => this.invite(passenger),
+      activate: () => this.activate(passenger),
+      deactivate: () => void this.deactivate(passenger),
+    };
+
+    handlers[action]?.();
+  }
+
+  /** The invitation panel is opened from the record itself, which is where the email lives. */
+  protected invite(passenger: PassengerResponse): void {
+    this.edit(passenger);
+  }
 
   protected onStatus(event: Event): void {
     this.list.setFilter({ status: (event.target as HTMLSelectElement).value });

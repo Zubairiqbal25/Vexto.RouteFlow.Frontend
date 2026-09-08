@@ -7,3 +7,5 @@ export * from './lib/vx-auth-shell';
 export * from './lib/vx-mobile-shell';
 export * from './lib/vx-login-page';
 export * from './lib/vx-accept-invitation-page';
+export * from './lib/vx-tenant-selector';
+export * from './lib/vx-command-palette';

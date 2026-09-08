@@ -8,18 +8,18 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
-import { PassengerInvoicesApi, PassengerSelfApi, VextoApiError } from '@vexto/api-client';
+import { PassengerSelfApi, VextoApiError } from '@vexto/api-client';
 import { AuthStore } from '@vexto/auth';
 import { VxMap, type VxMapMarker } from '@vexto/maps';
 import { PushNotifications, VxPushToggle } from '@vexto/push';
 import type {
+  PassengerAccessStatus,
   PassengerEta,
-  PassengerInvoice,
   PassengerTrip,
   TripLocation,
 } from '@vexto/models';
 import { TrackingHub } from '@vexto/signalr';
+import { PassengerAccessCard } from '../billing/access-card';
 import {
   ToastService,
   VxEmptyState,
@@ -60,7 +60,7 @@ function hasFinished(trip: PassengerTrip): boolean {
   selector: 'vexto-passenger-home-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    RouterLink,
+    PassengerAccessCard,
     VxEmptyState,
     VxErrorState,
     VxIcon,
@@ -188,22 +188,17 @@ function hasFinished(trip: PassengerTrip): boolean {
           }
         </section>
 
-        @if (amountDue(); as due) {
-          <!--
-            Only when something is actually owed. A card reading "AED 0.00 due" on every screen is
-            how people stop reading the screen.
-          -->
-          <section class="vx-card mt-5 p-5">
-            <p class="vx-section-label">Payment due</p>
-            <p class="mt-1 text-2xl font-semibold tracking-tight text-ink">
-              {{ money(due.total, due.currency) }}
-            </p>
-            <p class="mt-1 text-meta text-ink-muted">Due {{ date(due.dueDate) }}</p>
-
-            <a class="vx-btn vx-btn-primary vx-btn-touch mt-4 w-full" [routerLink]="['/payments', due.id]">
-              Pay now
-            </a>
-          </section>
+        <!--
+          Shown for every state including "up to date", because a passenger checking whether they
+          are paid up should get an answer rather than an absence. Blocked renders prominently and
+          leads with Pay now — see PassengerAccessCard.
+        -->
+        @if (access(); as status) {
+          <vexto-access-card
+            class="mt-5 block"
+            [status]="status"
+            [operator]="tenantName()"
+          />
         }
 
         <div class="mt-5 flex flex-col gap-3">
@@ -251,7 +246,6 @@ function hasFinished(trip: PassengerTrip): boolean {
 })
 export class PassengerHomePage {
   private readonly api = inject(PassengerSelfApi);
-  private readonly invoicesApi = inject(PassengerInvoicesApi);
   private readonly hub = inject(TrackingHub);
   private readonly destroyRef = inject(DestroyRef);
   private readonly store = inject(AuthStore);
@@ -274,7 +268,17 @@ export class PassengerHomePage {
    * One, not a list: the home screen answers "where is my bus", and a second question on it earns
    * a single line. The full list is a tab away.
    */
-  protected readonly amountDue = signal<PassengerInvoice | null>(null);
+  /**
+   * Whether this passenger may travel, and what is outstanding.
+   *
+   * Null while loading and after a failure: the card is hidden rather than guessed at. Somebody
+   * opening this app is looking for their bus first, and a billing error must not take the screen
+   * down with it.
+   */
+  protected readonly access = signal<PassengerAccessStatus | null>(null);
+
+  /** Their operator's name, so a suspended passenger knows who to call. Not Vexto. */
+  protected readonly tenantName = computed(() => this.store.tenantName());
   protected readonly tracking = signal<TripLocation | null>(null);
   protected readonly eta = signal<PassengerEta | null>(null);
 
@@ -383,17 +387,18 @@ export class PassengerHomePage {
 
     const today = new Date().toISOString().slice(0, 10);
 
-    // What they owe, alongside where their bus is. A failure here leaves the card hidden rather
-    // than the screen broken: somebody opening this app is looking for their bus first.
-    this.invoicesApi.invoices({ status: 'Open', pageSize: 5 }).subscribe({
-      next: (result) => {
-        const [soonest] = [...result.items].sort((first, second) =>
-          first.dueDate.localeCompare(second.dueDate),
-        );
-
-        this.amountDue.set(soonest ?? null);
-      },
-      error: () => this.amountDue.set(null),
+    // The authoritative billing state, alongside where their bus is.
+    //
+    // One request rather than two: this replaces a page of open invoices that the old card sorted
+    // client-side to find the soonest due date. The server already knows the outstanding total and
+    // — crucially — whether the operator's grace period has run out, which the invoice list alone
+    // could never say.
+    //
+    // A failure leaves the card hidden rather than the screen broken: somebody opening this app is
+    // looking for their bus first.
+    this.api.accessStatus().subscribe({
+      next: (status) => this.access.set(status),
+      error: () => this.access.set(null),
     });
 
     this.api.myTrips({ fromDate: today, pageSize: 5 }).subscribe({

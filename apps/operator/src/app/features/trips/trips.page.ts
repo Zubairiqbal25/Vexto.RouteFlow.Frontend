@@ -1,18 +1,31 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { DriversApi, RoutesApi, TripsApi, VehiclesApi } from '@vexto/api-client';
-import type { PickerOption, TripResponse } from '@vexto/models';
+import { DriversApi, RoutesApi, TrackingApi, TripsApi, VehiclesApi } from '@vexto/api-client';
+import type { ActiveFleetTrip, PickerOption, TripResponse } from '@vexto/models';
+import { PermissionService, VextoPermissions } from '@vexto/permissions';
 import {
+  ConfirmService,
+  ToastService,
+  VxCardGrid,
   VxEmptyState,
   VxErrorState,
   VxFilterBar,
+  type VxFilterChip,
+  VxFilterChips,
   VxPageHeader,
+  VxSectionHeader,
+  VxSkeletonCard,
   VxSkeletonTable,
   VxStatusBadge,
   VxTableShell,
+  VxViewSwitcher,
 } from '@vexto/ui';
-import { formatDate, formatTime } from '@vexto/utilities';
+import { formatDate, formatTime, secondsSince } from '@vexto/utilities';
+import { listViewPreference } from '../../shared/list-view';
 import { PagedList } from '../../shared/paged-list';
+import { TripDrawer } from './trip-drawer';
+import { groupTrips } from './trip-board';
+import { TripCard, type TripTracking } from './trip-card';
 
 interface TripFilters extends Record<string, unknown> {
   search: string;
@@ -24,31 +37,49 @@ interface TripFilters extends Record<string, unknown> {
 }
 
 /**
- * The operational view of the day.
+ * The operations board.
  *
- * Defaults to today, because that is what a dispatcher opens this page for. The filter row is
- * wider than on other list screens for the same reason: narrowing to one route or one driver is the
- * normal way this page is used, not an advanced feature.
+ * **A board, not a list.** A dispatcher's question is "what needs me now", and a table sorted by
+ * date answers it only after they have read it. Trips are banded into Today, Tomorrow, Upcoming and
+ * Earlier, and within today the running ones sort to the top — see `groupTrips`.
  *
- * The route, driver and vehicle pickers are loaded once here rather than per row — the alternative
- * is a request per trip, which is precisely the N+1 to avoid on a page that lists a hundred trips.
+ * The date filter is deliberately empty by default so the bands have something to band. The old
+ * screen defaulted to today, which is right for a table and wrong for a board: it left every other
+ * group permanently empty.
+ *
+ * A table is still offered, because comparing forty trips on one column is a real need and cards are
+ * bad at it. The choice is remembered per screen.
+ *
+ * Tracking state is joined in from the active-fleet feed the dashboard already uses — one request
+ * for the whole board rather than one per card.
  */
 @Component({
   selector: 'vexto-trips-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TripCard,
+    TripDrawer,
+    VxCardGrid,
     VxEmptyState,
     VxErrorState,
     VxFilterBar,
+    VxFilterChips,
     VxPageHeader,
+    VxSectionHeader,
+    VxSkeletonCard,
     VxSkeletonTable,
     VxStatusBadge,
     VxTableShell,
+    VxViewSwitcher,
   ],
   template: `
-    <vx-page-header title="Trips" description="Today's operation, and everything scheduled around it." />
+    <vx-page-header
+      title="Trips"
+      description="Today's operation, and everything scheduled around it."
+    />
 
     <vx-table-shell
+      [layout]="layout()"
       [loading]="list.loading()"
       [error]="list.error()"
       [isEmpty]="list.isEmpty()"
@@ -71,20 +102,6 @@ interface TripFilters extends Record<string, unknown> {
           [value]="list.filters().serviceDate"
           (change)="list.setFilter({ serviceDate: value($event) })"
         />
-
-        <select
-          filters
-          class="vx-select w-auto"
-          aria-label="Filter by status"
-          (change)="list.setFilter({ status: value($event) })"
-        >
-          <option value="">All statuses</option>
-          <option value="Scheduled">Scheduled</option>
-          <option value="Ready">Ready</option>
-          <option value="Started">Started</option>
-          <option value="Completed">Completed</option>
-          <option value="Cancelled">Cancelled</option>
-        </select>
 
         <select
           filters
@@ -122,12 +139,23 @@ interface TripFilters extends Record<string, unknown> {
           }
         </select>
 
-        <span trailing class="text-meta text-ink-muted">
-          {{ list.total() }} {{ list.total() === 1 ? 'trip' : 'trips' }}
+        <span trailing class="flex items-center gap-3">
+          <span class="hidden text-meta text-ink-muted sm:inline">
+            {{ list.total() }} {{ list.total() === 1 ? 'trip' : 'trips' }}
+          </span>
+          <vx-view-switcher [view]="layout()" (viewChange)="setView($event)" />
         </span>
       </vx-filter-bar>
 
-      <vx-skeleton-table loading [columns]="7" />
+      <div loading>
+        @if (layout() === 'cards') {
+          <div class="p-4 sm:p-5">
+            <vx-card-grid><vx-skeleton-card [count]="6" [media]="false" /></vx-card-grid>
+          </div>
+        } @else {
+          <vx-skeleton-table [columns]="7" />
+        }
+      </div>
 
       <vx-error-state
         error
@@ -143,43 +171,102 @@ interface TripFilters extends Record<string, unknown> {
         description="Change the date or clear the filters. Trips are created from a route's schedule."
       />
 
-      <table class="vx-table">
-        <thead>
-          <tr>
-            <th scope="col">Route</th>
-            <th scope="col">Service date</th>
-            <th scope="col">Departs</th>
-            <th scope="col">Driver</th>
-            <th scope="col">Vehicle</th>
-            <th scope="col">Passengers</th>
-            <th scope="col">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (trip of list.items(); track trip.id) {
-            <tr class="cursor-pointer" (click)="open(trip)">
-              <td>
-                <span class="vx-cell-strong block">{{ trip.route.code }}</span>
-                <span class="block truncate text-meta text-ink-muted">{{ trip.route.name }}</span>
-              </td>
-              <td>{{ date(trip.serviceDate) }}</td>
-              <td>
-                {{ time(trip.scheduledStartAtUtc) }}
-                @if (trip.actualStartAtUtc) {
-                  <span class="block text-meta text-ink-muted">
-                    Started {{ time(trip.actualStartAtUtc) }}
-                  </span>
-                }
-              </td>
-              <td>{{ trip.driver?.name ?? 'Unassigned' }}</td>
-              <td>{{ trip.vehicle?.plateNumber ?? 'Unassigned' }}</td>
-              <td>{{ trip.passengerCount }}</td>
-              <td><vx-status-badge [status]="trip.status" /></td>
+      @if (layout() === 'cards') {
+        <!-- The status chips filter what is already loaded rather than refetching: the board is one
+             page, and a round trip to hide four cancelled trips is a round trip nobody asked for. -->
+        <div class="mb-5">
+          <vx-filter-chips
+            label="Trip status"
+            [chips]="statusChips()"
+            [active]="activeChips()"
+            (toggled)="toggleChip($event)"
+            (cleared)="activeChips.set([])"
+          />
+        </div>
+
+        @if (groups().length === 0) {
+          <vx-empty-state
+            icon="filter"
+            title="Nothing matches those filters"
+            description="Clear a status chip to see the rest of the board."
+            actionLabel="Clear filters"
+            (action)="activeChips.set([])"
+          />
+        }
+
+        @for (group of groups(); track group.key) {
+          <section class="mb-7 last:mb-0">
+            <vx-section-header
+              [title]="group.label"
+              [description]="group.description"
+            >
+              <span class="text-meta text-ink-muted">
+                {{ group.trips.length }} {{ group.trips.length === 1 ? 'trip' : 'trips' }}
+              </span>
+            </vx-section-header>
+
+            <vx-card-grid>
+              @for (trip of group.trips; track trip.id) {
+                <vexto-trip-card
+                  [trip]="trip"
+                  [tracking]="trackingFor(trip)"
+                  [selected]="inspected()?.id === trip.id"
+                  (opened)="inspect(trip)"
+                  (action)="onCardAction(trip, $event)"
+                />
+              }
+            </vx-card-grid>
+          </section>
+        }
+      } @else {
+        <table class="vx-table">
+          <thead>
+            <tr>
+              <th scope="col">Route</th>
+              <th scope="col">Service date</th>
+              <th scope="col">Departs</th>
+              <th scope="col">Driver</th>
+              <th scope="col">Vehicle</th>
+              <th scope="col">Boarded</th>
+              <th scope="col">Status</th>
             </tr>
-          }
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            @for (trip of list.items(); track trip.id) {
+              <tr class="cursor-pointer" (click)="open(trip)">
+                <td>
+                  <span class="vx-cell-strong block">{{ trip.route.code }}</span>
+                  <span class="block truncate text-meta text-ink-muted">{{ trip.route.name }}</span>
+                </td>
+                <td>{{ date(trip.serviceDate) }}</td>
+                <td>
+                  {{ time(trip.scheduledStartAtUtc) }}
+                  @if (trip.actualStartAtUtc) {
+                    <span class="block text-meta text-ink-muted">
+                      Started {{ time(trip.actualStartAtUtc) }}
+                    </span>
+                  }
+                </td>
+                <td>{{ trip.driver?.name ?? 'Unassigned' }}</td>
+                <td>{{ trip.vehicle?.plateNumber ?? 'Unassigned' }}</td>
+                <td class="tabular-nums">
+                  {{ trip.attendance.boarded + trip.attendance.droppedOff }} / {{ trip.passengerCount }}
+                </td>
+                <td><vx-status-badge [status]="trip.status" /></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
     </vx-table-shell>
+
+    <vexto-trip-drawer
+      [trip]="inspected()"
+      [tracking]="inspected() ? trackingFor(inspected()!) : null"
+      (closed)="inspected.set(null)"
+      (openFull)="open($event)"
+      (action)="onCardAction($event.trip, $event.action)"
+    />
   `,
 })
 export class TripsPage {
@@ -187,14 +274,27 @@ export class TripsPage {
   private readonly routesApi = inject(RoutesApi);
   private readonly driversApi = inject(DriversApi);
   private readonly vehiclesApi = inject(VehiclesApi);
+  private readonly trackingApi = inject(TrackingApi);
+  private readonly permissions = inject(PermissionService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
 
   protected readonly date = formatDate;
   protected readonly time = formatTime;
 
+  private readonly preference = listViewPreference('trips');
+  protected readonly layout = this.preference.view;
+
   protected readonly routes = signal<PickerOption[]>([]);
   protected readonly drivers = signal<PickerOption[]>([]);
   protected readonly vehicles = signal<PickerOption[]>([]);
+  protected readonly fleet = signal<ActiveFleetTrip[]>([]);
+
+  /** The trip shown in the quick-view drawer. Null is the normal state. */
+  protected readonly inspected = signal<TripResponse | null>(null);
+
+  protected readonly activeChips = signal<readonly string[]>([]);
 
   protected readonly list = new PagedList<TripResponse, TripFilters>(
     (filters, page, pageSize) =>
@@ -210,7 +310,10 @@ export class TripsPage {
       }),
     {
       search: '',
-      serviceDate: new Date().toISOString().slice(0, 10),
+
+      // Empty on purpose. The board bands by day, and pinning the query to today would leave
+      // Tomorrow and Upcoming permanently empty — which is exactly what a board is for.
+      serviceDate: '',
       status: '',
       routeId: '',
       driverId: '',
@@ -218,12 +321,34 @@ export class TripsPage {
     },
   );
 
+  protected readonly statusChips = computed<VxFilterChip[]>(() => {
+    const counts = new Map<string, number>();
+
+    for (const trip of this.list.items()) {
+      counts.set(trip.status, (counts.get(trip.status) ?? 0) + 1);
+    }
+
+    return ['Started', 'Ready', 'Scheduled', 'Completed', 'Cancelled']
+      .filter((status) => counts.has(status))
+      .map((status) => ({ id: status, label: status, count: counts.get(status) ?? 0 }));
+  });
+
+  protected readonly groups = computed(() => {
+    const active = this.activeChips();
+
+    const filtered =
+      active.length === 0
+        ? this.list.items()
+        : this.list.items().filter((trip) => active.includes(trip.status));
+
+    return groupTrips(filtered);
+  });
+
   /**
    * The filter dropdowns come from the picker endpoints, not from paging the full lists.
    *
    * They used to ask for a hundred rows of each and hope that covered it, which silently dropped
-   * the 101st route from the filter and shipped three full datasets to render three selects. A
-   * picker returns id, label and a disambiguator, bounded server-side.
+   * the 101st route from the filter and shipped three full datasets to render three selects.
    */
   constructor() {
     this.routesApi.picker({ pageSize: 50 }).subscribe({
@@ -240,13 +365,103 @@ export class TripsPage {
       next: (options) => this.vehicles.set(options),
       error: () => this.vehicles.set([]),
     });
+
+    // One feed for the whole board. Without it every card would have to ask whether its own bus is
+    // reporting, which is the N+1 this page most easily falls into.
+    if (this.permissions.has(VextoPermissions.Tracking.View)) {
+      this.trackingApi.activeFleet().subscribe({
+        next: (fleet) => this.fleet.set(fleet),
+        error: () => this.fleet.set([]),
+      });
+    }
+  }
+
+  protected setView(view: 'cards' | 'table'): void {
+    this.preference.set(view);
+  }
+
+  protected toggleChip(id: string): void {
+    this.activeChips.update((active) =>
+      active.includes(id) ? active.filter((value) => value !== id) : [...active, id],
+    );
   }
 
   protected value(event: Event): string {
     return (event.target as HTMLInputElement | HTMLSelectElement).value;
   }
 
+  /**
+   * Live, stale or offline — decided from the age of the last fix rather than from the label.
+   *
+   * A trip that has started and said nothing is `offline`, which is exactly the one a dispatcher
+   * needs to notice. A trip that is not running has no tracking state at all, and shows no badge.
+   */
+  protected trackingFor(trip: TripResponse): TripTracking {
+    if (trip.status !== 'Started') {
+      return null;
+    }
+
+    const entry = this.fleet().find((candidate) => candidate.tripId === trip.id);
+    const recordedAt = entry?.tracking.recordedAtUtc;
+
+    if (!recordedAt) {
+      return 'offline';
+    }
+
+    return secondsSince(recordedAt) <= 45 ? 'live' : 'stale';
+  }
+
+  protected inspect(trip: TripResponse): void {
+    this.inspected.set(trip);
+  }
+
   protected open(trip: TripResponse): void {
+    this.inspected.set(null);
     void this.router.navigate(['/trips', trip.id]);
+  }
+
+  protected onCardAction(trip: TripResponse, action: string): void {
+    const handlers: Record<string, () => void> = {
+      open: () => this.open(trip),
+      crew: () => this.open(trip),
+      cancel: () => void this.cancel(trip),
+    };
+
+    handlers[action]?.();
+  }
+
+  /**
+   * Cancelling names the consequence rather than asking "are you sure".
+   *
+   * The number of people expecting the bus is the fact that decides whether this is routine or
+   * serious, and it is the one thing a generic confirmation hides.
+   */
+  private async cancel(trip: TripResponse): Promise<void> {
+    const expecting = trip.attendance.expected;
+
+    const confirmed = await this.confirm.ask({
+      title: 'Cancel this trip?',
+      message:
+        `${trip.route.name} at ${formatTime(trip.scheduledStartAtUtc)} will not run. ` +
+        (expecting > 0
+          ? `${expecting} ${expecting === 1 ? 'passenger is' : 'passengers are'} currently expected, and may be notified.`
+          : 'Nobody is currently expected on it.'),
+      confirmLabel: 'Cancel trip',
+      cancelLabel: 'Keep trip',
+      danger: true,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.api.cancel(trip.id).subscribe({
+      next: () => {
+        this.toast.success('Trip cancelled.');
+        this.inspected.set(null);
+        this.list.refreshQuietly();
+      },
+      error: () => this.toast.error('We could not cancel this trip.'),
+    });
   }
 }

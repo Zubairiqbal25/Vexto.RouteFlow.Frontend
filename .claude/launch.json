@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "operator",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:operator"],
+      "port": 4200
+    },
+    {
+      "name": "driver",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:driver"],
+      "port": 4201
+    },
+    {
+      "name": "passenger",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:passenger"],
+      "port": 4202
+    }
+  ]
+}

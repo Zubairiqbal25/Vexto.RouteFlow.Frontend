@@ -618,6 +618,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/platform/tenants/picker": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Searches transport operators for the tenant selector. */
+        get: {
+            parameters: {
+                query?: {
+                    search?: string;
+                    pageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantPickerOption"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/tenants/{tenantId}": {
         parameters: {
             query?: never;
@@ -1345,6 +1384,101 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passengers/{passengerId}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the passenger's profile photo. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    passengerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        /** Uploads or replaces the passenger's profile photo. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    passengerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        file?: components["schemas"]["IFormFile"];
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        /** Removes the passenger's profile photo. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    passengerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerResponse"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -2398,6 +2532,101 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/drivers/{driverId}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the driver's profile photo. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    driverId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        /** Uploads or replaces the driver's profile photo. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    driverId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        file?: components["schemas"]["IFormFile"];
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DriverResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        /** Removes the driver's profile photo. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    driverId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DriverResponse"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -3780,8 +4009,45 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["DriverTripDetailResponse"];
+                        "application/json": components["schemas"]["DriverTripManifestResponse"];
                     };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/driver/me/trips/{tripId}/passengers/{passengerId}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The photo of a passenger on one of the driver's own trips. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                    passengerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
             };
         };
@@ -4279,6 +4545,476 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/passenger/me/access-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether the passenger may currently travel, and what is owed if not. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerAccessStatusResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passenger/me/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the passenger's own profile photo. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        /** Uploads or replaces the passenger's own profile photo. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        file?: components["schemas"]["IFormFile"];
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        /** Removes the passenger's own profile photo. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PassengerResponse"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/driver/me/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the driver's own profile photo. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        /** Uploads or replaces the driver's own profile photo. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        file?: components["schemas"]["IFormFile"];
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DriverResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        /** Removes the driver's own profile photo. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DriverResponse"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passengers/{passengerId}/access-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether one passenger may currently travel, and what is outstanding. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    passengerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OperatorPassengerAccessResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/passengers/access-statuses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transport access for a set of passengers, for a list screen. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["OperatorPassengerAccessRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OperatorPassengerAccessResponse"][];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vehicles/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** What each of these vehicles is running now, and what it runs next. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["VehicleOperationsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["VehicleOperationsResponse"][];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trips/{tripId}/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Substitutes the driver and vehicle on one upcoming trip, leaving the route roster alone. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChangeTripResourcesRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TripResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/tenants/{tenantId}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Puts a transport operator on a Vexto plan, or moves them to a different one. Platform administrators only. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AssignTenantPlanCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AssignedPlanResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open invoices, outstanding amount, collected this month and failed payments, aggregated in the database. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BillingSummaryResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/driver/me/trips/{tripId}/location": {
         parameters: {
             query?: never;
@@ -4445,126 +5181,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/trips/{tripId}/resources": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Substitutes the driver and vehicle on one upcoming trip, leaving the route roster alone. */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tripId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ChangeTripResourcesRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["TripResponse"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform/tenants/{tenantId}/subscription": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Puts a transport operator on a Vexto plan, or moves them to a different one. Platform administrators only. */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    tenantId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["AssignTenantPlanCommand"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["AssignedPlanResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/billing/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Open invoices, outstanding amount, collected this month and failed payments, aggregated in the database. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BillingSummaryResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/dashboard/summary": {
         parameters: {
             query?: never;
@@ -4589,6 +5205,53 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["DashboardSummaryResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/trip-trend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Trips, completions and boardings per day over a recent window. */
+        get: {
+            parameters: {
+                query?: {
+                    days?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DashboardTripTrendResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                     };
                 };
             };
@@ -5921,7 +6584,7 @@ export interface components {
             /** Format: uuid */
             tenantId: null | string;
             tenantName: null | string;
-            isPlatformAdmin: boolean;
+            isServiceAdmin: boolean;
             roles: string[];
             permissions: string[];
         };
@@ -6028,19 +6691,26 @@ export interface components {
             email: string;
             phone: null | string;
             website: null | string;
+            businessDetails: null | components["schemas"]["TenantBusinessDetailsPayload"];
             owner: null | components["schemas"]["CreateTenantOwnerCommand"];
+            /** @default false */
+            activateImmediately: boolean;
         };
         CreateTenantOwnerCommand: {
             email: string;
             firstName: string;
             lastName: string;
             phoneNumber: null | string;
-            password: string;
+            password: null | string;
+            shouldInvite?: boolean;
         };
         CreateTenantResult: {
             tenant: components["schemas"]["TenantResponse"];
             /** Format: uuid */
             ownerUserId: null | string;
+            /** Format: date-time */
+            ownerInvitationExpiresAtUtc: null | string;
+            ownerInvitationAcceptUrl: null | string;
         };
         CreateUserCommand: {
             email: string;
@@ -6107,6 +6777,23 @@ export interface components {
             /** Format: int32 */
             offlineVehicles: number | string;
         };
+        DashboardTrendPointResponse: {
+            /** Format: date */
+            serviceDate: string;
+            /** Format: int32 */
+            trips: number | string;
+            /** Format: int32 */
+            completedTrips: number | string;
+            /** Format: int32 */
+            boardedPassengers: number | string;
+        };
+        DashboardTripTrendResponse: {
+            /** Format: date */
+            fromDate: string;
+            /** Format: date */
+            toDate: string;
+            points: components["schemas"]["DashboardTrendPointResponse"][];
+        };
         /** @enum {unknown} */
         DayOfWeek: "Sunday" | "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday";
         DeclareAbsenceRequest: {
@@ -6143,6 +6830,27 @@ export interface components {
             accountStatus: string;
             /** Format: date-time */
             invitationExpiresAtUtc: null | string;
+        };
+        DriverManifestPassengerResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            passengerId: string;
+            name: string;
+            /** Format: uuid */
+            routeStopId: null | string;
+            stop: null | string;
+            /** Format: int32 */
+            sequence: null | number | string;
+            status: string;
+            accessState: string;
+            hasPhoto: boolean;
+            /** Format: date-time */
+            boardedAtUtc: null | string;
+            /** Format: date-time */
+            noShowAtUtc: null | string;
+            /** Format: date-time */
+            droppedOffAtUtc: null | string;
         };
         DriverNextStopDetailResponse: {
             /** Format: uuid */
@@ -6182,14 +6890,15 @@ export interface components {
             licenseExpiryDate: string;
             status: string;
             notes: null | string;
+            hasPhoto: boolean;
             /** Format: date-time */
             createdAtUtc: string;
             /** Format: date-time */
             updatedAtUtc: null | string;
         };
-        DriverTripDetailResponse: {
+        DriverTripManifestResponse: {
             trip: components["schemas"]["DriverTripResponse"];
-            passengers: components["schemas"]["TripPassengerResponse"][];
+            passengers: components["schemas"]["DriverManifestPassengerResponse"][];
         };
         DriverTripResponse: {
             /** Format: uuid */
@@ -6330,6 +7039,22 @@ export interface components {
             url: string;
             /** Format: date-time */
             expiresAtUtc: null | string;
+        };
+        OperatorPassengerAccessRequest: {
+            passengerIds: string[];
+        };
+        OperatorPassengerAccessResponse: {
+            /** Format: uuid */
+            passengerId: string;
+            state: string;
+            isAllowedToTravel: boolean;
+            /** Format: double */
+            amountOutstanding: number | string;
+            currency: null | string;
+            /** Format: date */
+            earliestDueDate: null | string;
+            /** Format: date */
+            gracePeriodEndsOn: null | string;
         };
         PagedResultOfAgreementResponse: {
             items: components["schemas"]["AgreementResponse"][];
@@ -6506,6 +7231,17 @@ export interface components {
             /** Format: int32 */
             tripsAffected: number | string;
         };
+        PassengerAccessStatusResponse: {
+            state: string;
+            isAllowedToTravel: boolean;
+            /** Format: double */
+            amountOutstanding: number | string;
+            currency: null | string;
+            /** Format: date */
+            earliestDueDate: null | string;
+            /** Format: date */
+            gracePeriodEndsOn: null | string;
+        };
         /** @enum {unknown} */
         PassengerBillingCycle: "Monthly" | "Weekly" | "Custom";
         PassengerEtaResponse: {
@@ -6604,6 +7340,7 @@ export interface components {
             email: null | string;
             status: string;
             notes: null | string;
+            hasPhoto: boolean;
             /** Format: date-time */
             createdAtUtc: string;
             /** Format: date-time */
@@ -6945,6 +7682,17 @@ export interface components {
         };
         /** @enum {unknown} */
         SubscriptionStatus: "Trial" | "Active" | "PastDue" | "Cancelled" | "Expired" | null;
+        TenantBusinessDetailsPayload: {
+            addressLine1: null | string;
+            addressLine2: null | string;
+            city: null | string;
+            emirate: null | string;
+            country: null | string;
+            postalCode: null | string;
+            primaryContactName: null | string;
+            primaryContactEmail: null | string;
+            primaryContactPhone: null | string;
+        };
         TenantDetailResponse: {
             tenant: components["schemas"]["TenantResponse"];
             settings: components["schemas"]["TenantSettingsResponse"];
@@ -6958,6 +7706,14 @@ export interface components {
             whoPaysProcessingFee: components["schemas"]["ProcessingFeePayer"];
             onlinePaymentsEnabled: boolean;
         };
+        TenantPickerOption: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            status: string;
+            location: null | string;
+            hasLogo: boolean;
+        };
         TenantResponse: {
             /** Format: uuid */
             id: string;
@@ -6970,6 +7726,8 @@ export interface components {
             email: string;
             phone: null | string;
             website: null | string;
+            businessDetails: components["schemas"]["TenantBusinessDetailsPayload"];
+            hasLogo: boolean;
             status: string;
             /** Format: date-time */
             createdAtUtc: string;
@@ -6979,6 +7737,11 @@ export interface components {
             defaultCurrency: string;
             dateFormat: string;
             language: string;
+            /** Format: int32 */
+            passengerPaymentGracePeriodDays: number | string;
+            blockPassengersWithOverduePayments: boolean;
+            /** Format: date-time */
+            updatedAtUtc: null | string;
         };
         TenantSubscriptionResponse: {
             /** Format: uuid */
@@ -7002,6 +7765,18 @@ export interface components {
         };
         TerminateAgreementRequest: {
             reason: null | string;
+        };
+        TripAttendanceCountsResponse: {
+            /** Format: int32 */
+            expected: number | string;
+            /** Format: int32 */
+            boarded: number | string;
+            /** Format: int32 */
+            noShow: number | string;
+            /** Format: int32 */
+            skipped: number | string;
+            /** Format: int32 */
+            droppedOff: number | string;
         };
         TripAttendanceResponse: {
             /** Format: uuid */
@@ -7118,6 +7893,7 @@ export interface components {
             status: string;
             /** Format: int32 */
             passengerCount: number | string;
+            attendance: components["schemas"]["TripAttendanceCountsResponse"];
             /** Format: date-time */
             createdAtUtc: string;
             /** Format: date-time */
@@ -7228,6 +8004,7 @@ export interface components {
             email: string;
             phone: null | string;
             website: null | string;
+            businessDetails: null | components["schemas"]["TenantBusinessDetailsPayload"];
         };
         UpdateTenantPaymentSettingsCommand: {
             platformFeeType: components["schemas"]["PlatformFeeType"];
@@ -7241,6 +8018,9 @@ export interface components {
             defaultCurrency: string;
             dateFormat: string;
             language: string;
+            /** Format: int32 */
+            passengerPaymentGracePeriodDays: number | string;
+            blockPassengersWithOverduePayments: boolean;
         };
         UpdateUserCommand: {
             /** Format: uuid */
@@ -7286,6 +8066,22 @@ export interface components {
             createdAtUtc: string;
             /** Format: date-time */
             lastLoginAtUtc: null | string;
+        };
+        VehicleOperationsRequest: {
+            vehicleIds: string[];
+        };
+        VehicleOperationsResponse: {
+            /** Format: uuid */
+            vehicleId: string;
+            /** Format: uuid */
+            activeTripId: null | string;
+            activeRouteName: null | string;
+            activeDriverName: null | string;
+            /** Format: uuid */
+            nextTripId: null | string;
+            nextRouteName: null | string;
+            /** Format: date-time */
+            nextDepartureAtUtc: null | string;
         };
         VehicleResponse: {
             /** Format: uuid */

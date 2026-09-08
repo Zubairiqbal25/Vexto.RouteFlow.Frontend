@@ -14,6 +14,7 @@ import type {
   CreateUserCommand,
   CreateVehicleCommand,
   DashboardSummary,
+  DashboardTripTrend,
   DeclareAbsenceRequest,
   DriverInvitation,
   DriverInvitationStatus,
@@ -55,6 +56,7 @@ import type {
   UpdateUserCommand,
   UpdateVehicleCommand,
   UserResponse,
+  VehicleOperations,
   VehicleResponse,
 } from '@vexto/models';
 import { VextoHttp } from './vexto-http';
@@ -295,6 +297,16 @@ export class VehiclesApi {
   picker(query: VehiclePickerQuery = {}): Observable<PickerOption[]> {
     return this.http.get('/api/v1/vehicles/picker', { ...query });
   }
+
+  /**
+   * What each of these vehicles is running now and next.
+   *
+   * One request for a page of cards. A POST for a read because the input is a list of ids — see
+   * the passenger access batch for the same reasoning.
+   */
+  operations(vehicleIds: readonly string[]): Observable<VehicleOperations[]> {
+    return this.http.post('/api/v1/vehicles/operations', { vehicleIds });
+  }
 }
 
 export interface RouteQuery extends PageQuery {
@@ -526,6 +538,16 @@ export class DashboardApi {
 
   summary(): Observable<DashboardSummary> {
     return this.http.get('/api/v1/dashboard/summary');
+  }
+
+  /**
+   * Trips, completions and boardings per service day.
+   *
+   * A read model rather than a client-side aggregation: counting thirty days of trips in the
+   * browser would mean downloading every trip in the window to draw fourteen points.
+   */
+  tripTrend(days = 14): Observable<DashboardTripTrend> {
+    return this.http.get('/api/v1/dashboard/trip-trend', { days });
   }
 }
 

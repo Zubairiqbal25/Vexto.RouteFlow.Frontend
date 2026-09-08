@@ -52,7 +52,30 @@ export type VxIconName =
   | 'phone'
   | 'mail'
   | 'shield'
-  | 'user';
+  | 'user'
+  | 'sun'
+  | 'moon'
+  | 'monitor'
+  | 'grid'
+  | 'list'
+  | 'command'
+  | 'building'
+  | 'card'
+  | 'wallet'
+  | 'trend-up'
+  | 'trend-down'
+  | 'ban'
+  | 'wrench'
+  | 'play'
+  | 'flag'
+  | 'navigate'
+  | 'route-line'
+  | 'sparkle'
+  | 'switch'
+  | 'activity'
+  | 'home'
+  | 'camera'
+  | 'globe';
 
 const PATHS: Readonly<Record<VxIconName, string>> = {
   dashboard: 'M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z',
@@ -100,6 +123,38 @@ const PATHS: Readonly<Record<VxIconName, string>> = {
   mail: 'M3 6h18v12H3zM3 7l9 6 9-6',
   shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3zM9 12l2 2 4-4',
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM5 20a7 7 0 0 1 14 0',
+
+  // Theme controls. The three states of the toggle: an explicit light choice, an explicit dark one,
+  // and following the operating system.
+  sun: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',
+  moon: 'M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z',
+  monitor: 'M3 5h18v11H3zM9 20h6M12 16v4',
+
+  // Layout and navigation affordances.
+  grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  list: 'M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01',
+  command: 'M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3z',
+  switch: 'M4 8h13l-3-3M20 16H7l3 3',
+  home: 'M4 11l8-7 8 7M6 10v10h12V10',
+
+  // Business objects that had no icon of their own.
+  building: 'M4 21V6l7-3v18M11 21h9V10l-9-3M7 9h.01M7 13h.01M7 17h.01M15 11h.01M15 15h.01M15 19h.01',
+  card: 'M3 7h18v11H3zM3 11h18M6.5 15H10',
+  wallet: 'M4 7h13a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1V7zM4 7a2 2 0 0 1 2-2h9M16 13h.01',
+  globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z',
+
+  // Trend and state.
+  'trend-up': 'M3 17l6-6 4 4 8-8M21 7v5h-5',
+  'trend-down': 'M3 7l6 6 4-4 8 8M21 17v-5h-5',
+  ban: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM5.6 5.6l12.8 12.8',
+  wrench: 'M15 7a4 4 0 0 1 5 5l-8.5 8.5a2.1 2.1 0 0 1-3-3L17 9',
+  play: 'M8 5.5v13l11-6.5-11-6.5z',
+  flag: 'M5 21V4h13l-2.5 4L18 12H5',
+  navigate: 'M21 3L3 10.5l8 2.5 2.5 8L21 3z',
+  'route-line': 'M6 3v13a3 3 0 0 0 3 3h9M6 3a1.6 1.6 0 1 1 0 3.2A1.6 1.6 0 0 1 6 3zM18 19a1.6 1.6 0 1 1 0-3.2 1.6 1.6 0 0 1 0 3.2zM11 11h4',
+  sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z',
+  activity: 'M3 12h4l3-8 4 16 3-8h4',
+  camera: 'M4 8h3l1.5-2h7L17 8h3v11H4zM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z',
 };
 
 @Component({

@@ -5,11 +5,22 @@
  * radius or a shadow reads a token; it does not invent one. The scales are deliberately short —
  * a palette with three greys is easier to keep consistent than one with eleven.
  *
- * Dark mode is not a milestone requirement, but the token layer is structured so that redefining
- * the surface/text/border group under `.vexto-dark` is all it would take.
+ * THEMING
+ * -------
+ * There is exactly one dark block, and it hangs off `[data-theme="dark"]` on <html>. There is no
+ * `prefers-color-scheme` rule anywhere in this file, and that is deliberate: `ThemeService`
+ * resolves the user's preference (`light` | `dark` | `system`) to an effective theme in JavaScript
+ * and stamps the attribute, re-stamping when the OS theme changes. One source of truth, one block
+ * to keep correct, and no way for the CSS and the toggle to disagree about what is showing.
+ *
+ * Dark mode is a redefinition of the *semantic* groups below — surface, text, border, nav, status,
+ * chart. It is not a second stylesheet of component rules. If a component needs a dark variant,
+ * the component is reading a raw value it should not be reading.
  * --------------------------------------------------------------------------------------------- */
 
 :root {
+  color-scheme: light;
+
   /* Brand ------------------------------------------------------------------------------------ */
   --vexto-primary-25: #f2fbfa;
   --vexto-primary-50: #e6f7f5;
@@ -28,14 +39,16 @@
 
   /* Surfaces --------------------------------------------------------------------------------- */
   --vexto-bg: #f6f8fa;
+  --vexto-bg-subtle: #eef1f5;
   --vexto-surface: #ffffff;
   --vexto-surface-raised: #ffffff;
   --vexto-surface-muted: #f9fafb;
   --vexto-surface-hover: #f3f5f7;
+  --vexto-surface-sunken: #f1f4f7;
   --vexto-overlay: rgb(12 20 33 / 45%);
 
-  /* The navigation shell is intentionally dark: it separates chrome from content at a glance and
-     is the single strongest piece of Vexto's visual identity. */
+  /* The navigation shell is intentionally dark in both themes: it separates chrome from content at
+     a glance and is the single strongest piece of Vexto's visual identity. */
   --vexto-nav-bg: #0d1626;
   --vexto-nav-bg-raised: #131f33;
   --vexto-nav-border: #1e2c42;
@@ -43,6 +56,7 @@
   --vexto-nav-text-strong: #e2e8f0;
   --vexto-nav-item-hover: #17253c;
   --vexto-nav-item-active: rgb(15 143 133 / 18%);
+  --vexto-nav-item-active-text: #ffffff;
   --vexto-nav-section: #64748b;
 
   /* Borders ---------------------------------------------------------------------------------- */
@@ -76,6 +90,31 @@
   --vexto-neutral: #64748b;
   --vexto-neutral-soft: #f1f3f6;
   --vexto-neutral-text: #414d5e;
+
+  /* On-colour foreground for a solid status fill (a danger button, a live dot). */
+  --vexto-on-status: #ffffff;
+
+  /* Charts ----------------------------------------------------------------------------------- *
+   * Six series, ordered by how often they are needed. The first is the brand colour, so a
+   * single-series chart is always on-brand without a component choosing one. They are deliberately
+   * distinguishable in greyscale as well as in colour — a chart that only works for people who see
+   * six hues is a chart that does not work.                                                      */
+  --vexto-chart-1: #0f8f85;
+  --vexto-chart-2: #4f46e5;
+  --vexto-chart-3: #d97706;
+  --vexto-chart-4: #2563eb;
+  --vexto-chart-5: #db2777;
+  --vexto-chart-6: #65a30d;
+
+  --vexto-chart-grid: #eaeef3;
+  --vexto-chart-axis: #98a2b3;
+  --vexto-chart-area-from: rgb(15 143 133 / 22%);
+  --vexto-chart-area-to: rgb(15 143 133 / 0%);
+
+  /* The moving band in a skeleton. A token because it is the one value that has to sit *above*
+     the surface in light mode and *below* it in dark. */
+  --vexto-skeleton-base: #f3f5f7;
+  --vexto-skeleton-shine: #e6eaf0;
 
   /* Spacing scale (4px base) ----------------------------------------------------------------- */
   --vexto-space-1: 0.25rem;
@@ -111,10 +150,153 @@
 
   /* Motion ----------------------------------------------------------------------------------- */
   --vexto-transition: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  --vexto-transition-slow: 240ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* -----------------------------------------------------------------------------------------------
+ * Dark theme.
+ *
+ * Surfaces are deep blue-slate rather than neutral grey or black: a true-black dashboard makes
+ * every card border disappear and every shadow useless, and a screen full of data needs its
+ * surfaces to separate. Elevation in dark comes from the surface stepping *lighter*, not from a
+ * shadow — a shadow on a dark ground is invisible — so the shadows below are kept only as a faint
+ * ambient edge and the work is done by `--vexto-surface` vs `--vexto-surface-raised`.
+ * --------------------------------------------------------------------------------------------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* The brand hue is lifted, not reused. #0f8f85 on a dark surface is muddy and fails contrast on
+     small text; the 300/400 steps read as the same brand at the right weight. */
+  --vexto-primary-25: #071a19;
+  --vexto-primary-50: #0b2b28;
+  --vexto-primary-100: #10403b;
+  --vexto-primary-200: #17605a;
+  --vexto-primary-300: #2eaea2;
+  --vexto-primary-400: #45c2b6;
+  --vexto-primary: #2eb3a6;
+  --vexto-primary-hover: #43c4b7;
+  --vexto-primary-active: #6fd8cd;
+  --vexto-primary-contrast: #04201d;
+  --vexto-primary-soft: #0b2b28;
+
+  --vexto-accent: #818cf8;
+  --vexto-accent-soft: #1e1b4b;
+
+  --vexto-bg: #080e1a;
+  --vexto-bg-subtle: #0b1424;
+  --vexto-surface: #121d31;
+  --vexto-surface-raised: #1a273f;
+  --vexto-surface-muted: #0e1829;
+  --vexto-surface-hover: #1c2942;
+  --vexto-surface-sunken: #0b1424;
+  --vexto-overlay: rgb(3 7 15 / 68%);
+
+  /* The rail sits between the page and a card, so the chrome still reads as chrome without the
+     hard black edge that a shared background would produce. */
+  --vexto-nav-bg: #0c1526;
+  --vexto-nav-bg-raised: #131f33;
+  --vexto-nav-border: #1c2840;
+  --vexto-nav-text: #93a3bd;
+  --vexto-nav-text-strong: #e8eef7;
+  --vexto-nav-item-hover: #18243a;
+  --vexto-nav-item-active: rgb(46 179 166 / 20%);
+  --vexto-nav-item-active-text: #eafffb;
+  --vexto-nav-section: #64748b;
+
+  --vexto-border: #223050;
+  --vexto-border-strong: #33415f;
+  --vexto-border-subtle: #182339;
+
+  --vexto-text-primary: #e9eef7;
+  --vexto-text-secondary: #a8b6cd;
+  --vexto-text-muted: #7c8ba5;
+  --vexto-text-inverse: #0b1424;
+
+  /* Status: the solid colour is lifted for contrast, the soft background becomes a dark tint of
+     the same hue, and the text becomes the light end. Both halves of every pair move together —
+     changing only one is what makes badges the first thing to look broken in dark mode. */
+  --vexto-success: #34d399;
+  --vexto-success-soft: #0b2f24;
+  --vexto-success-text: #6ee7b7;
+
+  --vexto-warning: #fbbf24;
+  --vexto-warning-soft: #33240a;
+  --vexto-warning-text: #fcd34d;
+
+  --vexto-danger: #f87171;
+  --vexto-danger-soft: #331519;
+  --vexto-danger-text: #fca5a5;
+
+  --vexto-info: #60a5fa;
+  --vexto-info-soft: #11224a;
+  --vexto-info-text: #93c5fd;
+
+  --vexto-neutral: #94a3b8;
+  --vexto-neutral-soft: #1a2438;
+  --vexto-neutral-text: #b6c2d6;
+
+  --vexto-on-status: #06111f;
+
+  --vexto-chart-1: #2eb3a6;
+  --vexto-chart-2: #818cf8;
+  --vexto-chart-3: #fbbf24;
+  --vexto-chart-4: #60a5fa;
+  --vexto-chart-5: #f472b6;
+  --vexto-chart-6: #a3e635;
+
+  --vexto-chart-grid: #1e2b45;
+  --vexto-chart-axis: #6b7a94;
+  --vexto-chart-area-from: rgb(46 179 166 / 26%);
+  --vexto-chart-area-to: rgb(46 179 166 / 0%);
+
+  --vexto-skeleton-base: #16223a;
+  --vexto-skeleton-shine: #1f2e4a;
+
+  --vexto-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 30%);
+  --vexto-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 38%), 0 1px 2px -1px rgb(0 0 0 / 32%);
+  --vexto-shadow-md: 0 4px 10px -2px rgb(0 0 0 / 45%), 0 2px 4px -2px rgb(0 0 0 / 35%);
+  --vexto-shadow-lg: 0 14px 26px -6px rgb(0 0 0 / 52%), 0 4px 10px -4px rgb(0 0 0 / 38%);
+  --vexto-shadow-xl: 0 26px 46px -10px rgb(0 0 0 / 60%);
+  --vexto-focus-ring: 0 0 0 4px rgb(46 179 166 / 24%);
+}
+
+/* -----------------------------------------------------------------------------------------------
+ * Motion.
+ *
+ * Collapsing the transition tokens to zero is most of honouring reduced-motion, because every
+ * component animates through them. The rest — shimmer, marker movement — opts out at its own site.
+ * --------------------------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --vexto-transition: 0ms;
+    --vexto-transition-slow: 0ms;
+  }
+}
+
+/* The theme swap itself. Kept to the two properties that actually change on most elements, and
+   scoped to the moment of the switch by a class the ThemeService adds and removes — a permanent
+   global transition makes every hover feel laggy, and animating `all` on a dashboard of several
+   hundred nodes drops frames. */
+.vexto-theme-switching,
+.vexto-theme-switching *,
+.vexto-theme-switching *::before,
+.vexto-theme-switching *::after {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
+  transition-delay: 0ms !important;
+}
+
+/* Never animate a map canvas or anything that paints its own pixels. */
+.vexto-theme-switching canvas,
+.vexto-theme-switching img,
+.vexto-theme-switching svg * {
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vexto-theme-switching,
+  .vexto-theme-switching *,
+  .vexto-theme-switching *::before,
+  .vexto-theme-switching *::after {
+    transition: none !important;
   }
 }

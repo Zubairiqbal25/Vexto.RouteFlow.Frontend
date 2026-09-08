@@ -13,12 +13,18 @@ import {
   VxPageHeader,
   VxRowAction,
   VxRowActions,
+  VxCardGrid,
+  VxSkeletonCard,
   VxSkeletonTable,
   VxStatusBadge,
   VxTableShell,
+  VxViewSwitcher,
 } from '@vexto/ui';
 import { daysUntil, formatDate, formatMobile } from '@vexto/utilities';
+import { listViewPreference } from '../../shared/list-view';
 import { PagedList } from '../../shared/paged-list';
+import { DriverCard } from './driver-card';
+import { DriverDrawer } from './driver-drawer';
 import { DriverForm } from './driver-form';
 
 interface DriverFilters extends Record<string, unknown> {
@@ -43,9 +49,14 @@ const EXPIRY_WARNING_DAYS = 45;
     VxPageHeader,
     VxRowAction,
     VxRowActions,
+    VxCardGrid,
+    VxSkeletonCard,
     VxSkeletonTable,
+    DriverCard,
+    DriverDrawer,
     VxStatusBadge,
     VxTableShell,
+    VxViewSwitcher,
   ],
   template: `
     <vx-page-header title="Drivers" description="Manage drivers, licences and portal access.">
@@ -56,6 +67,7 @@ const EXPIRY_WARNING_DAYS = 45;
     </vx-page-header>
 
     <vx-table-shell
+      [layout]="layout()"
       [loading]="list.loading()"
       [error]="list.error()"
       [isEmpty]="list.isEmpty()"
@@ -83,12 +95,23 @@ const EXPIRY_WARNING_DAYS = 45;
           <option value="Suspended">Suspended</option>
         </select>
 
-        <span trailing class="text-meta text-ink-muted">
-          {{ list.total() }} {{ list.total() === 1 ? 'driver' : 'drivers' }}
+        <span trailing class="flex items-center gap-3">
+          <span class="hidden text-meta text-ink-muted sm:inline">
+            {{ list.total() }} {{ list.total() === 1 ? 'driver' : 'drivers' }}
+          </span>
+          <vx-view-switcher [view]="layout()" (viewChange)="setView($event)" />
         </span>
       </vx-filter-bar>
 
-      <vx-skeleton-table loading [columns]="7" />
+      <div loading>
+        @if (layout() === 'cards') {
+          <div class="p-4 sm:p-5">
+            <vx-card-grid><vx-skeleton-card [count]="6" /></vx-card-grid>
+          </div>
+        } @else {
+          <vx-skeleton-table [columns]="7" />
+        }
+      </div>
 
       <vx-error-state
         error
@@ -110,6 +133,18 @@ const EXPIRY_WARNING_DAYS = 45;
         (action)="add()"
       />
 
+      @if (layout() === 'cards') {
+        <vx-card-grid>
+          @for (driver of list.items(); track driver.id) {
+            <vexto-driver-card
+              [driver]="driver"
+              [selected]="inspected()?.id === driver.id"
+              (opened)="inspect(driver)"
+              (action)="onCardAction(driver, $event)"
+            />
+          }
+        </vx-card-grid>
+      } @else {
       <table class="vx-table">
         <thead>
           <tr>
@@ -181,7 +216,14 @@ const EXPIRY_WARNING_DAYS = 45;
           }
         </tbody>
       </table>
+      }
     </vx-table-shell>
+
+    <vexto-driver-drawer
+      [driver]="inspected()"
+      (closed)="inspected.set(null)"
+      (edit)="editFromDrawer($event)"
+    />
 
     <vexto-driver-form
       [open]="formOpen()"
@@ -198,7 +240,13 @@ export class DriversPage {
 
   protected readonly manage = VextoPermissions.Drivers.Manage;
 
+  private readonly preference = listViewPreference('drivers');
+  protected readonly layout = this.preference.view;
+
   protected readonly formOpen = signal(false);
+
+  /** The driver shown in the quick-view drawer. Null is the normal state. */
+  protected readonly inspected = signal<DriverResponse | null>(null);
   protected readonly editing = signal<DriverResponse | null>(null);
 
   protected readonly list = new PagedList<DriverResponse, DriverFilters>(
@@ -211,6 +259,32 @@ export class DriversPage {
       }),
     { search: '', status: '' },
   );
+
+  protected inspect(driver: DriverResponse): void {
+    this.inspected.set(driver);
+  }
+
+  /** The drawer is the shortcut; editing is still the record's own form. */
+  protected editFromDrawer(driver: DriverResponse): void {
+    this.inspected.set(null);
+    this.edit(driver);
+  }
+
+  protected setView(view: 'cards' | 'table'): void {
+    this.preference.set(view);
+  }
+
+  /** Routes an overflow-menu choice to the same handlers the table rows use. */
+  protected onCardAction(driver: DriverResponse, action: string): void {
+    const handlers: Record<string, () => void> = {
+      edit: () => this.edit(driver),
+      invite: () => this.edit(driver),
+      activate: () => this.activate(driver),
+      deactivate: () => void this.deactivate(driver),
+    };
+
+    handlers[action]?.();
+  }
 
   protected readonly mobile = formatMobile;
   protected readonly date = formatDate;

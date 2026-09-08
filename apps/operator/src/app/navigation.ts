@@ -7,14 +7,44 @@ import { VextoPermissions } from '@vexto/permissions';
  * "Operations" is what a dispatcher opens at 5am; "People" and "Fleet" are what an administrator
  * maintains. Every item declares the permission that reveals it — the sidebar shows exactly what
  * the signed-in user is allowed to open, and nothing else.
+ *
+ * **Platform needs no new gating mechanism.** Its items require `Tenants.View`, which no tenant
+ * role is granted and which a ServiceAdmin satisfies through the single permission bypass. A
+ * TenantOwner therefore never sees the section, and nothing here tests a role name — which is the
+ * rule the rest of the product follows too.
  */
 export const OPERATOR_NAV: readonly NavSection[] = [
   {
+    label: 'Platform',
+    items: [
+      {
+        label: 'Overview',
+        link: '/platform',
+        icon: 'globe',
+        exact: true,
+        permissions: [VextoPermissions.Tenants.View],
+      },
+      {
+        label: 'Tenants',
+        link: '/platform/tenants',
+        icon: 'building',
+        permissions: [VextoPermissions.Tenants.View],
+      },
+    ],
+  },
+  {
+    label: 'Overview',
     items: [{ label: 'Dashboard', link: '/dashboard', icon: 'dashboard', exact: true }],
   },
   {
     label: 'Operations',
     items: [
+      {
+        label: 'Live Fleet',
+        link: '/live-fleet',
+        icon: 'live',
+        permissions: [VextoPermissions.Tracking.View],
+      },
       {
         label: 'Trips',
         link: '/trips',
@@ -26,12 +56,6 @@ export const OPERATOR_NAV: readonly NavSection[] = [
         link: '/routes',
         icon: 'routes',
         permissions: [VextoPermissions.Routes.View],
-      },
-      {
-        label: 'Live Fleet',
-        link: '/live-fleet',
-        icon: 'live',
-        permissions: [VextoPermissions.Tracking.View],
       },
     ],
   },
@@ -64,12 +88,12 @@ export const OPERATOR_NAV: readonly NavSection[] = [
     ],
   },
   {
-    label: 'Billing',
+    label: 'Finance',
     items: [
       {
         label: 'Subscriptions',
         link: '/billing/subscriptions',
-        icon: 'agreements',
+        icon: 'card',
         permissions: [VextoPermissions.Billing.View],
       },
       {
@@ -81,7 +105,7 @@ export const OPERATOR_NAV: readonly NavSection[] = [
       {
         label: 'Payments',
         link: '/billing/payments',
-        icon: 'agreements',
+        icon: 'wallet',
         permissions: [VextoPermissions.Payments.View],
       },
       {
@@ -107,9 +131,7 @@ export const OPERATOR_NAV: readonly NavSection[] = [
         icon: 'agreements',
         permissions: [VextoPermissions.Agreements.View],
       },
+      { label: 'Settings', link: '/settings', icon: 'settings' },
     ],
-  },
-  {
-    items: [{ label: 'Settings', link: '/settings', icon: 'settings' }],
   },
 ];

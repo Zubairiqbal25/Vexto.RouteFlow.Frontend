@@ -2,331 +2,289 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { RouterLink } from '@angular/router';
 import { DashboardApi, TrackingApi, TripsApi } from '@vexto/api-client';
 import { AuthStore } from '@vexto/auth';
-import type { ActiveFleetTrip, DashboardSummary, TripResponse } from '@vexto/models';
+import type {
+  ActiveFleetTrip,
+  DashboardSummary,
+  DashboardTripTrend,
+  TripResponse,
+} from '@vexto/models';
 import { PermissionService, VextoPermissions } from '@vexto/permissions';
 import {
-  VxAvatar,
+  VxAreaChart,
+  VxBarChart,
+  type VxChartPoint,
   VxEmptyState,
   VxIcon,
+  VxMetricCard,
+  VxProgressRing,
   VxSectionCard,
-  VxSkeletonTable,
-  VxStatCard,
+  VxSectionHeader,
+  VxSkeletonCard,
   VxStatusBadge,
 } from '@vexto/ui';
 import { formatRelative, formatTime, secondsSince } from '@vexto/utilities';
 
 /**
- * The operator's morning view.
+ * The operator's command centre.
  *
- * **On data sources.** The tiles and the attendance strip come from
- * `GET /api/v1/dashboard/summary`, one request that the backend answers in a fixed number of
- * queries however large the operation is. This page used to assemble the same numbers from five
- * requests, one of which paged a hundred trips purely to count them.
+ * **Operational status first.** The top row is what a dispatcher needs before they have taken their
+ * coat off — how many buses are out, how today's trips are going, and whether anything is stuck.
+ * The people-and-fleet counts sit below it, because "how many drivers do we employ" is a question
+ * for a Tuesday afternoon, not for 5am.
  *
- * Two further requests remain, and they are not counts: a page of today's trips, which the three
- * panels below are all derived from, and the active-fleet feed the map-less fleet list needs. Both
- * return rows that are actually displayed.
+ * **On data sources.** The tiles and the attendance ring come from `GET /api/v1/dashboard/summary`,
+ * one request the backend answers in a fixed number of queries however large the operation is. The
+ * trend chart comes from `GET /api/v1/dashboard/trip-trend`, a read model that returns at most
+ * ninety rows of three numbers — the alternative would be shipping every trip in the window to the
+ * browser to count them. Two further requests remain and neither is a count: a page of today's
+ * trips, which three panels are derived from, and the active-fleet feed.
  *
- * Panels the signed-in user has no permission for are not rendered at all, rather than rendered
- * empty — a dispatcher without fleet rights should not see an "Active Vehicles: —" tile.
+ * **Nothing here is invented.** Every number, every trend point and every delta comes from the API.
+ * A panel with no permission is not rendered at all rather than rendered empty, and a metric with
+ * no comparison to make shows no delta rather than a fabricated percentage.
  */
 @Component({
   selector: 'vexto-dashboard-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
-    VxAvatar,
+    VxAreaChart,
+    VxBarChart,
     VxEmptyState,
     VxIcon,
+    VxMetricCard,
+    VxProgressRing,
     VxSectionCard,
-    VxSkeletonTable,
-    VxStatCard,
+    VxSectionHeader,
+    VxSkeletonCard,
     VxStatusBadge,
   ],
   template: `
-    <header class="mb-6">
-      <h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">
-        {{ greeting() }}, {{ firstName() }}
-      </h1>
-      <p class="mt-1 text-body text-ink-muted">
-        Here is how {{ tenantName() ?? 'your operation' }} is running today.
-      </p>
-    </header>
-
-    @if (can(perms.Dashboard.View)) {
-      <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <vx-stat-card
-          label="Active Passengers"
-          icon="passengers"
-          accent="primary"
-          [loading]="loadingSummary()"
-          [value]="summary()?.activePassengers ?? '—'"
-          context="Cleared to travel"
-        />
-        <vx-stat-card
-          label="Active Drivers"
-          icon="drivers"
-          accent="info"
-          [loading]="loadingSummary()"
-          [value]="summary()?.activeDrivers ?? '—'"
-          context="Available to assign"
-        />
-        <vx-stat-card
-          label="Active Vehicles"
-          icon="vehicle"
-          accent="success"
-          [loading]="loadingSummary()"
-          [value]="summary()?.activeVehicles ?? '—'"
-          context="In service"
-        />
-        <vx-stat-card
-          label="Today's Trips"
-          icon="trips"
-          accent="warning"
-          [loading]="loadingSummary()"
-          [value]="todaysTripTotal()"
-          [context]="completedContext()"
-        />
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">
+          {{ greeting() }}, {{ firstName() }}
+        </h1>
+        <p class="mt-1 text-body text-ink-muted">
+          Here is how {{ tenantName() ?? 'your operation' }} is running today.
+        </p>
       </div>
 
       @if (summary(); as today) {
-        <vx-section-card
-          class="mb-6 block"
-          title="Today at a glance"
-          [description]="'Service date ' + today.serviceDate + ', in your own time zone.'"
+        <span
+          class="inline-flex items-center gap-2 rounded-full border border-line px-3 py-1.5 text-meta text-ink-secondary"
+          style="background: var(--vexto-surface-muted)"
         >
-          <dl class="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4 lg:grid-cols-7">
-            <div>
-              <dt class="vx-section-label">Scheduled</dt>
-              <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
-                {{ today.today.scheduledTrips }}
-              </dd>
-            </div>
-            <div>
-              <dt class="vx-section-label">Running</dt>
-              <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
-                {{ today.today.startedTrips }}
-              </dd>
-            </div>
-            <div>
-              <dt class="vx-section-label">Completed</dt>
-              <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
-                {{ today.today.completedTrips }}
-              </dd>
-            </div>
-            <div>
-              <dt class="vx-section-label">Cancelled</dt>
-              <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
-                {{ today.today.cancelledTrips }}
-              </dd>
-            </div>
-            <div>
-              <dt class="vx-section-label">Boarded</dt>
-              <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
-                {{ today.attendance.boarded }} / {{ today.attendance.expected }}
-              </dd>
-            </div>
-            <div>
-              <dt class="vx-section-label">No-shows</dt>
-              <dd class="mt-1 text-lg font-semibold tabular-nums text-ink">
-                {{ today.attendance.noShow }}
-              </dd>
-            </div>
-            <div>
-              <dt class="vx-section-label">Tracking</dt>
-              <dd class="mt-1 flex flex-wrap items-center gap-1.5">
-                <vx-status-badge tone="success" [label]="today.tracking.liveVehicles + ' live'" />
-                @if (today.tracking.staleVehicles + today.tracking.offlineVehicles > 0) {
-                  <vx-status-badge
-                    tone="warning"
-                    [label]="
-                      today.tracking.staleVehicles + today.tracking.offlineVehicles + ' quiet'
-                    "
-                  />
-                }
-              </dd>
-            </div>
-          </dl>
-        </vx-section-card>
+          <vx-icon name="calendar" [size]="14" />
+          Service date {{ today.serviceDate }}
+        </span>
       }
+    </header>
+
+    @if (can(perms.Dashboard.View)) {
+      <!-- Operational first. Live, running, waiting, stuck. -->
+      <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <vx-metric-card
+          label="Buses running"
+          icon="live"
+          accent="success"
+          [loading]="loadingSummary()"
+          [value]="running()"
+          [context]="trackingContext()"
+        />
+        <vx-metric-card
+          label="Today's trips"
+          icon="trips"
+          accent="primary"
+          [loading]="loadingSummary()"
+          [value]="todaysTripTotal()"
+          [context]="completedContext()"
+          [spark]="tripSpark()"
+        />
+        <vx-metric-card
+          label="Boarded today"
+          icon="check-circle"
+          accent="info"
+          [loading]="loadingSummary()"
+          [value]="summary()?.attendance?.boarded ?? '—'"
+          [context]="attendanceContext()"
+          [spark]="boardingSpark()"
+        />
+        <vx-metric-card
+          label="No-shows today"
+          icon="alert"
+          [accent]="(summary()?.attendance?.noShow ?? 0) > 0 ? 'warning' : 'neutral'"
+          [loading]="loadingSummary()"
+          [value]="summary()?.attendance?.noShow ?? '—'"
+          [context]="skippedContext()"
+        />
+      </div>
+
+      <div class="mb-6 grid gap-4 lg:grid-cols-3">
+        <!-- The trend. Two weeks is enough to see a pattern and short enough to read the labels. -->
+        <vx-section-card
+          class="lg:col-span-2"
+          title="Trips over the last two weeks"
+          description="Scheduled journeys per service day, in your own time zone."
+        >
+          @if (loadingTrend()) {
+            <div class="vx-skeleton h-[180px] w-full rounded-lg"></div>
+          } @else if (tripTrendPoints().length === 0) {
+            <vx-empty-state
+              icon="trips"
+              title="No trips yet"
+              description="Once you generate trips from a route, the last two weeks will appear here."
+            />
+          } @else {
+            <vx-area-chart [points]="tripTrendPoints()" unit="trips" />
+          }
+        </vx-section-card>
+
+        <vx-section-card
+          title="Attendance today"
+          description="Everyone due to travel, and how the day is going."
+        >
+          @if (loadingSummary()) {
+            <div class="vx-skeleton mx-auto size-28 rounded-full"></div>
+          } @else if ((summary()?.attendance?.expected ?? 0) === 0) {
+            <vx-empty-state
+              icon="passengers"
+              title="Nobody is due to travel"
+              description="Attendance appears once today's trips carry passengers."
+            />
+          } @else {
+            <div class="flex flex-col items-center gap-5">
+              <vx-progress-ring
+                label="Boarded"
+                caption="boarded"
+                tone="success"
+                [value]="summary()!.attendance.boarded"
+                [total]="summary()!.attendance.expected"
+              />
+              <vx-bar-chart
+                class="w-full"
+                [points]="attendanceBars()"
+                [tones]="['success', 'warning', 'neutral']"
+              />
+            </div>
+          }
+        </vx-section-card>
+      </div>
+
+      <!-- People and fleet. Slower-moving, so it sits below the operational picture. -->
+      <vx-section-header title="People and fleet" />
+      <div class="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        @if (can(perms.Passengers.View)) {
+          <vx-metric-card
+            label="Active passengers"
+            icon="passengers"
+            accent="primary"
+            [loading]="loadingSummary()"
+            [value]="summary()?.activePassengers ?? '—'"
+            context="Cleared to travel"
+          />
+        }
+        @if (can(perms.Drivers.View)) {
+          <vx-metric-card
+            label="Active drivers"
+            icon="drivers"
+            accent="info"
+            [loading]="loadingSummary()"
+            [value]="summary()?.activeDrivers ?? '—'"
+            context="Available to assign"
+          />
+        }
+        @if (can(perms.Fleet.View)) {
+          <vx-metric-card
+            label="Active vehicles"
+            icon="vehicle"
+            accent="success"
+            [loading]="loadingSummary()"
+            [value]="summary()?.activeVehicles ?? '—'"
+            context="In service"
+          />
+        }
+        @if (can(perms.Routes.View)) {
+          <vx-metric-card
+            label="Active routes"
+            icon="routes"
+            accent="neutral"
+            [loading]="loadingSummary()"
+            [value]="summary()?.activeRoutes ?? '—'"
+            context="Carrying passengers"
+          />
+        }
+      </div>
     }
 
     @if (can(perms.Trips.View)) {
-      <div class="grid gap-5 xl:grid-cols-2">
-        <vx-section-card
-          title="Trips in progress"
-          description="Vehicles currently running."
-          [padded]="false"
-        >
-          <a header-actions routerLink="/trips" class="vx-btn vx-btn-ghost vx-btn-sm">
-            View all
-            <vx-icon name="chevron-right" [size]="15" />
-          </a>
-
+      <div class="grid gap-4 xl:grid-cols-2">
+        <vx-section-card title="Running now" description="Trips under way, and how they are tracking.">
           @if (loadingTrips()) {
-            <vx-skeleton-table [columns]="3" [rows]="3" />
+            <vx-skeleton-card [count]="2" [media]="false" />
           } @else if (inProgress().length === 0) {
             <vx-empty-state
               icon="live"
-              title="Nothing running yet"
-              description="Trips appear here once a driver starts them."
+              title="No trips running"
+              description="Trips appear here the moment a driver starts one."
             />
           } @else {
-            <div class="vx-table-scroll vx-scroll">
-              <table class="vx-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Route</th>
-                    <th scope="col">Driver</th>
-                    <th scope="col">Started</th>
-                    <th scope="col">Tracking</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (trip of inProgress(); track trip.id) {
-                    <tr>
-                      <td>
-                        <a class="vx-cell-strong hover:underline" [routerLink]="['/trips', trip.id]">
-                          {{ trip.route.code }}
-                        </a>
-                        <span class="block truncate text-meta text-ink-muted">
-                          {{ trip.route.name }}
-                        </span>
-                      </td>
-                      <td>{{ trip.driver?.name ?? 'Unassigned' }}</td>
-                      <td>{{ trip.actualStartAtUtc ? time(trip.actualStartAtUtc) : '—' }}</td>
-                      <td>
-                        @if (trackingFor(trip.id); as tracking) {
-                          <vx-status-badge
-                            [tone]="tracking.tone"
-                            [label]="tracking.label"
-                            [icon]="tracking.tone === 'success' ? 'signal' : 'signal-off'"
-                          />
-                        } @else {
-                          <span class="text-ink-muted">—</span>
-                        }
-                      </td>
-                    </tr>
+            <ul class="flex flex-col gap-2">
+              @for (trip of inProgress(); track trip.id) {
+                <li
+                  class="flex items-center gap-3 rounded-xl border border-line p-3"
+                  style="background: var(--vexto-surface-muted)"
+                >
+                  <span
+                    class="flex size-9 flex-none items-center justify-center rounded-lg"
+                    style="background: var(--vexto-success-soft); color: var(--vexto-success-text)"
+                  >
+                    <vx-icon name="live" [size]="17" />
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-body font-medium text-ink">{{ trip.route.name }}</p>
+                    <p class="truncate text-meta text-ink-muted">
+                      {{ time(trip.scheduledStartAtUtc) }} · {{ trip.passengerCount }} passengers
+                    </p>
+                  </div>
+                  @if (trackingFor(trip.id); as tracking) {
+                    <vx-status-badge [tone]="tracking.tone" [label]="tracking.label" />
                   }
-                </tbody>
-              </table>
-            </div>
+                  <a class="vx-btn vx-btn-ghost vx-btn-sm" [routerLink]="['/trips', trip.id]">
+                    Open
+                  </a>
+                </li>
+              }
+            </ul>
           }
         </vx-section-card>
 
-        <vx-section-card
-          title="Upcoming trips"
-          description="Scheduled to depart later today."
-          [padded]="false"
-        >
+        <vx-section-card title="Up next" description="The next departures on today's schedule.">
           @if (loadingTrips()) {
-            <vx-skeleton-table [columns]="3" [rows]="3" />
+            <vx-skeleton-card [count]="3" [media]="false" />
           } @else if (upcoming().length === 0) {
             <vx-empty-state
               icon="calendar"
-              title="Nothing else today"
-              description="Generate trips from a route's schedule to plan ahead."
+              title="Nothing else scheduled"
+              description="Every trip for today has either run or been cancelled."
             />
           } @else {
-            <div class="vx-table-scroll vx-scroll">
-              <table class="vx-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Departs</th>
-                    <th scope="col">Route</th>
-                    <th scope="col">Vehicle</th>
-                    <th scope="col">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (trip of upcoming(); track trip.id) {
-                    <tr>
-                      <td class="vx-cell-strong">{{ time(trip.scheduledStartAtUtc) }}</td>
-                      <td>
-                        <a class="hover:underline" [routerLink]="['/trips', trip.id]">
-                          {{ trip.route.code }}
-                        </a>
-                      </td>
-                      <td>{{ trip.vehicle?.plateNumber ?? 'Unassigned' }}</td>
-                      <td><vx-status-badge [status]="trip.status" /></td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          }
-        </vx-section-card>
-
-        @if (can(perms.Tracking.View)) {
-          <vx-section-card
-            title="Fleet status"
-            description="Where the running vehicles are reporting from."
-            [padded]="false"
-          >
-            <a header-actions routerLink="/live-fleet" class="vx-btn vx-btn-ghost vx-btn-sm">
-              Live Fleet
-              <vx-icon name="chevron-right" [size]="15" />
-            </a>
-
-            @if (fleet().length === 0) {
-              <vx-empty-state
-                icon="live"
-                title="No vehicles reporting"
-                description="Positions appear once a driver starts a trip with location enabled."
-              />
-            } @else {
-              <ul class="divide-y divide-line-subtle">
-                @for (trip of fleet(); track trip.tripId) {
-                  <li class="flex items-center justify-between gap-4 px-5 py-3.5">
-                    <div class="min-w-0">
-                      <p class="font-medium text-ink">{{ trip.plateNumber ?? 'Unassigned' }}</p>
-                      <p class="truncate text-meta text-ink-muted">
-                        {{ trip.routeCode }} · {{ trip.driverName ?? 'No driver' }}
-                      </p>
-                    </div>
-                    <div class="flex flex-none items-center gap-3">
-                      <span class="text-meta text-ink-muted">
-                        {{ trip.tracking.recordedAtUtc ? relative(trip.tracking.recordedAtUtc) : '—' }}
-                      </span>
-                      <vx-status-badge
-                        [tone]="fleetTone(trip)"
-                        [label]="fleetTone(trip) === 'success' ? 'Live' : 'Stale'"
-                      />
-                    </div>
-                  </li>
-                }
-              </ul>
-            }
-          </vx-section-card>
-        }
-
-        <vx-section-card
-          title="Recent activity"
-          description="The last trips to finish."
-          [padded]="false"
-        >
-          @if (loadingTrips()) {
-            <vx-skeleton-table [columns]="3" [rows]="3" />
-          } @else if (recent().length === 0) {
-            <vx-empty-state
-              icon="check-circle"
-              title="Nothing completed yet"
-              description="Finished trips are listed here with their attendance."
-            />
-          } @else {
-            <ul class="divide-y divide-line-subtle">
-              @for (trip of recent(); track trip.id) {
-                <li class="flex items-center gap-3 px-5 py-3.5">
-                  <vx-avatar size="sm" [name]="trip.driver?.name ?? trip.route.code" />
+            <ul class="flex flex-col">
+              @for (trip of upcoming(); track trip.id) {
+                <li
+                  class="flex items-center gap-3 border-b border-line-subtle py-2.5 last:border-0"
+                >
+                  <span
+                    class="w-14 flex-none text-body font-semibold tabular-nums text-ink"
+                    >{{ time(trip.scheduledStartAtUtc) }}</span
+                  >
                   <div class="min-w-0 flex-1">
-                    <p class="truncate text-body text-ink">
-                      <span class="font-medium">{{ trip.route.code }}</span>
-                      completed with {{ trip.passengerCount }} passengers
-                    </p>
-                    <p class="text-meta text-ink-muted">
-                      {{ trip.actualEndAtUtc ? relative(trip.actualEndAtUtc) : '' }}
+                    <p class="truncate text-body text-ink">{{ trip.route.name }}</p>
+                    <p class="truncate text-meta text-ink-muted">
+                      {{ trip.passengerCount }} passengers
                     </p>
                   </div>
+                  <vx-status-badge [status]="trip.status" />
                   <a class="vx-btn vx-btn-ghost vx-btn-sm" [routerLink]="['/trips', trip.id]">
                     Open
                   </a>
@@ -354,12 +312,14 @@ export class DashboardPage {
   protected readonly tenantName = this.store.tenantName;
 
   protected readonly summary = signal<DashboardSummary | null>(null);
+  protected readonly trend = signal<DashboardTripTrend | null>(null);
   protected readonly todaysTrips = signal<TripResponse[]>([]);
   protected readonly fleet = signal<ActiveFleetTrip[]>([]);
   protected readonly loadingSummary = signal(true);
+  protected readonly loadingTrend = signal(true);
   protected readonly loadingTrips = signal(true);
 
-  /** Every state a trip can be in today, so the tile agrees with the strip beneath it. */
+  /** Every state a trip can be in today, so the tile agrees with the trend beneath it. */
   protected readonly todaysTripTotal = computed(() => {
     const today = this.summary()?.today;
 
@@ -376,6 +336,83 @@ export class DashboardPage {
     );
   });
 
+  protected readonly running = computed(() => this.summary()?.today.startedTrips ?? '—');
+
+  /**
+   * How the running buses are reporting. Named rather than colour-only: "3 live, 1 stale" is the
+   * sentence a dispatcher would say out loud.
+   */
+  protected readonly trackingContext = computed(() => {
+    const tracking = this.summary()?.tracking;
+
+    if (!tracking) {
+      return null;
+    }
+
+    const parts: string[] = [];
+
+    if (tracking.liveVehicles > 0) {
+      parts.push(`${tracking.liveVehicles} live`);
+    }
+
+    if (tracking.staleVehicles > 0) {
+      parts.push(`${tracking.staleVehicles} stale`);
+    }
+
+    if (tracking.offlineVehicles > 0) {
+      parts.push(`${tracking.offlineVehicles} offline`);
+    }
+
+    return parts.length > 0 ? parts.join(' · ') : 'Nothing reporting';
+  });
+
+  protected readonly completedContext = computed(
+    () => `${this.summary()?.today.completedTrips ?? 0} completed`,
+  );
+
+  protected readonly attendanceContext = computed(() => {
+    const attendance = this.summary()?.attendance;
+
+    return attendance ? `of ${attendance.expected} expected` : null;
+  });
+
+  protected readonly skippedContext = computed(() => {
+    const skipped = this.summary()?.attendance.skipped ?? 0;
+
+    return skipped > 0 ? `${skipped} declared an absence` : 'Nobody missed a pickup';
+  });
+
+  protected readonly tripTrendPoints = computed<VxChartPoint[]>(
+    () =>
+      this.trend()?.points.map((point) => ({
+        label: this.shortDate(point.serviceDate),
+        value: point.trips,
+      })) ?? [],
+  );
+
+  /** The tile sparklines reuse the trend the chart already fetched; no extra request. */
+  protected readonly tripSpark = computed(() =>
+    (this.trend()?.points ?? []).map((point) => point.trips),
+  );
+
+  protected readonly boardingSpark = computed(() =>
+    (this.trend()?.points ?? []).map((point) => point.boardedPassengers),
+  );
+
+  protected readonly attendanceBars = computed<VxChartPoint[]>(() => {
+    const attendance = this.summary()?.attendance;
+
+    if (!attendance) {
+      return [];
+    }
+
+    return [
+      { label: 'Boarded', value: attendance.boarded },
+      { label: 'No-show', value: attendance.noShow },
+      { label: 'Absent', value: attendance.skipped },
+    ];
+  });
+
   protected readonly inProgress = computed(() =>
     this.todaysTrips().filter((trip) => trip.status === 'Started'),
   );
@@ -387,19 +424,9 @@ export class DashboardPage {
       .slice(0, 6),
   );
 
-  protected readonly recent = computed(() =>
-    this.todaysTrips()
-      .filter((trip) => trip.status === 'Completed')
-      .sort((a, b) => (b.actualEndAtUtc ?? '').localeCompare(a.actualEndAtUtc ?? ''))
-      .slice(0, 5),
-  );
-
-  protected readonly completedContext = computed(
-    () => `${this.summary()?.today.completedTrips ?? 0} completed`,
-  );
-
   constructor() {
     this.loadSummary();
+    this.loadTrend();
     this.loadTrips();
   }
 
@@ -432,6 +459,15 @@ export class DashboardPage {
     return { tone, label: tone === 'success' ? 'Live' : 'Stale' };
   }
 
+  /** `2026-09-08` becomes `8 Sep`. The axis has room for a day, not for an ISO date. */
+  private shortDate(iso: string): string {
+    const date = new Date(`${iso}T00:00:00`);
+
+    return Number.isNaN(date.getTime())
+      ? iso
+      : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  }
+
   private loadSummary(): void {
     if (!this.can(VextoPermissions.Dashboard.View)) {
       this.loadingSummary.set(false);
@@ -448,6 +484,22 @@ export class DashboardPage {
     });
   }
 
+  private loadTrend(): void {
+    if (!this.can(VextoPermissions.Dashboard.View)) {
+      this.loadingTrend.set(false);
+
+      return;
+    }
+
+    this.dashboardApi.tripTrend(14).subscribe({
+      next: (trend) => {
+        this.trend.set(trend);
+        this.loadingTrend.set(false);
+      },
+      error: () => this.loadingTrend.set(false),
+    });
+  }
+
   private loadTrips(): void {
     if (!this.can(VextoPermissions.Trips.View)) {
       this.loadingTrips.set(false);
@@ -457,7 +509,7 @@ export class DashboardPage {
 
     const today = new Date().toISOString().slice(0, 10);
 
-    // One page of today's trips feeds three panels; the alternative is three filtered requests.
+    // One page of today's trips feeds both panels; the alternative is two filtered requests.
     this.tripsApi.list({ serviceDate: today, pageSize: 100 }).subscribe({
       next: (result) => {
         this.todaysTrips.set(result.items);

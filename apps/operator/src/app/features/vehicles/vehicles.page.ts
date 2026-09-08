@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { VehiclesApi } from '@vexto/api-client';
-import type { VehicleResponse } from '@vexto/models';
+import type { VehicleOperations, VehicleResponse } from '@vexto/models';
 import { CanDirective, VextoPermissions } from '@vexto/permissions';
 import {
   ConfirmService,
@@ -13,11 +13,16 @@ import {
   VxRowAction,
   VxRowActions,
   VxSkeletonTable,
+  VxCardGrid,
+  VxSkeletonCard,
   VxStatusBadge,
   VxTableShell,
+  VxViewSwitcher,
 } from '@vexto/ui';
 import { humanizeEnum } from '@vexto/utilities';
+import { listViewPreference } from '../../shared/list-view';
 import { PagedList } from '../../shared/paged-list';
+import { VehicleCard } from './vehicle-card';
 import { VehicleForm } from './vehicle-form';
 
 interface VehicleFilters extends Record<string, unknown> {
@@ -40,8 +45,12 @@ interface VehicleFilters extends Record<string, unknown> {
     VxRowAction,
     VxRowActions,
     VxSkeletonTable,
+    VehicleCard,
+    VxCardGrid,
+    VxSkeletonCard,
     VxStatusBadge,
     VxTableShell,
+    VxViewSwitcher,
   ],
   template: `
     <vx-page-header title="Vehicles" description="Your fleet, its capacity and its availability.">
@@ -52,6 +61,7 @@ interface VehicleFilters extends Record<string, unknown> {
     </vx-page-header>
 
     <vx-table-shell
+      [layout]="layout()"
       [loading]="list.loading()"
       [error]="list.error()"
       [isEmpty]="list.isEmpty()"
@@ -93,12 +103,23 @@ interface VehicleFilters extends Record<string, unknown> {
           <option value="Suspended">Suspended</option>
         </select>
 
-        <span trailing class="text-meta text-ink-muted">
+        <span trailing class="flex items-center gap-3">
+          <vx-view-switcher [view]="layout()" (viewChange)="setView($event)" />
+        </span>
+        <span trailing class="hidden text-meta text-ink-muted sm:inline">
           {{ list.total() }} {{ list.total() === 1 ? 'vehicle' : 'vehicles' }}
         </span>
       </vx-filter-bar>
 
-      <vx-skeleton-table loading [columns]="7" />
+      <div loading>
+        @if (layout() === 'cards') {
+          <div class="p-4 sm:p-5">
+            <vx-card-grid [dense]="true"><vx-skeleton-card [count]="6" /></vx-card-grid>
+          </div>
+        } @else {
+          <vx-skeleton-table [columns]="7" />
+        }
+      </div>
 
       <vx-error-state
         error
@@ -120,6 +141,18 @@ interface VehicleFilters extends Record<string, unknown> {
         (action)="add()"
       />
 
+      @if (layout() === 'cards') {
+        <vx-card-grid [dense]="true">
+          @for (vehicle of list.items(); track vehicle.id) {
+            <vexto-vehicle-card
+              [vehicle]="vehicle"
+              [operations]="operationsFor(vehicle.id)"
+              (opened)="edit(vehicle)"
+              (action)="onCardAction(vehicle, $event)"
+            />
+          }
+        </vx-card-grid>
+      } @else {
       <table class="vx-table">
         <thead>
           <tr>
@@ -190,6 +223,7 @@ interface VehicleFilters extends Record<string, unknown> {
           }
         </tbody>
       </table>
+      }
     </vx-table-shell>
 
     <vexto-vehicle-form
@@ -211,6 +245,17 @@ export class VehiclesPage {
   protected readonly formOpen = signal(false);
   protected readonly editing = signal<VehicleResponse | null>(null);
 
+  private readonly preference = listViewPreference('vehicles');
+  protected readonly layout = this.preference.view;
+
+  /**
+   * What each vehicle on the page is doing, fetched once per page.
+   *
+   * Asking per card would be the N+1 a fleet grid makes twenty times over; the endpoint answers the
+   * whole page from the trip snapshots in one query.
+   */
+  private readonly operations = signal<ReadonlyMap<string, VehicleOperations>>(new Map());
+
   protected readonly list = new PagedList<VehicleResponse, VehicleFilters>(
     (filters, page, pageSize) =>
       this.api.list({
@@ -222,6 +267,64 @@ export class VehiclesPage {
       }),
     { search: '', status: '', vehicleType: '' },
   );
+
+  constructor() {
+    // One batched request per page of results.
+    effect(() => {
+      const vehicles = this.list.items();
+
+      if (vehicles.length === 0) {
+        return;
+      }
+
+      this.api.operations(vehicles.map((vehicle) => vehicle.id)).subscribe({
+        next: (rows) => this.operations.set(new Map(rows.map((row) => [row.vehicleId, row]))),
+
+        // A failure here must not break the list: the cards simply show no assignment line.
+        error: () => this.operations.set(new Map()),
+      });
+    });
+  }
+
+  protected setView(view: 'cards' | 'table'): void {
+    this.preference.set(view);
+  }
+
+  /**
+   * What this vehicle is doing, or an explicit "nothing".
+   *
+   * The batch omits idle vehicles, so an absent row means available rather than unknown — and the
+   * card needs to tell those apart to decide between "Available to assign" and no line at all.
+   */
+  protected operationsFor(vehicleId: string): VehicleOperations | null {
+    if (this.operations().size === 0) {
+      return null;
+    }
+
+    return (
+      this.operations().get(vehicleId) ?? {
+        vehicleId,
+        activeTripId: null,
+        activeRouteName: null,
+        activeDriverName: null,
+        nextTripId: null,
+        nextRouteName: null,
+        nextDepartureAtUtc: null,
+      }
+    );
+  }
+
+  /** Routes an overflow-menu choice to the same handlers the table rows use. */
+  protected onCardAction(vehicle: VehicleResponse, action: string): void {
+    const handlers: Record<string, () => void> = {
+      edit: () => this.edit(vehicle),
+      activate: () => this.activate(vehicle),
+      maintenance: () => this.maintenance(vehicle),
+      deactivate: () => void this.deactivate(vehicle),
+    };
+
+    handlers[action]?.();
+  }
 
   /** `Dubai A 12345` when a code exists, otherwise just the number. */
   protected plate(vehicle: VehicleResponse): string {

@@ -47,6 +47,18 @@ export interface PagedResult<T> {
 /* Tenancy and users --------------------------------------------------------------------------- */
 export type TenantResponse = Schema<'TenantResponse'>;
 export type TenantDetailResponse = Schema<'TenantDetailResponse'>;
+export type TenantPickerOption = Schema<'TenantPickerOption'>;
+export type TenantBusinessDetails = Schema<'TenantBusinessDetailsPayload'>;
+export type CreateTenantCommand = Schema<'CreateTenantCommand'>;
+export type CreateTenantResult = Schema<'CreateTenantResult'>;
+export type UpdateTenantCommand = Schema<'UpdateTenantCommand'>;
+
+/**
+ * A passenger's transport access as the operator sees it — the state plus the figures behind it.
+ * The driver's manifest carries the state and nothing else; see `DriverManifestPassenger`.
+ */
+export type PassengerAccessStatus = Schema<'PassengerAccessStatusResponse'>;
+export type OperatorPassengerAccess = Schema<'OperatorPassengerAccessResponse'>;
 export type UserResponse = Schema<'UserResponse'>;
 export type CreateUserCommand = Schema<'CreateUserCommand'>;
 export type UpdateUserCommand = Schema<'UpdateUserCommand'>;
@@ -88,6 +100,14 @@ export type DashboardSummary = Schema<'DashboardSummaryResponse'>;
 export type DashboardToday = Schema<'DashboardTodayResponse'>;
 export type DashboardTracking = Schema<'DashboardTrackingResponse'>;
 export type DashboardAttendance = Schema<'DashboardAttendanceResponse'>;
+export type DashboardTripTrend = Schema<'DashboardTripTrendResponse'>;
+export type DashboardTrendPoint = Schema<'DashboardTrendPointResponse'>;
+
+/** What a vehicle is running now and next. Batched per page; see VehicleOperationsEndpoints. */
+export type VehicleOperations = Schema<'VehicleOperationsResponse'>;
+
+/** A trip's manifest by outcome, on the list row so a board draws twenty bars in one request. */
+export type TripAttendanceCounts = Schema<'TripAttendanceCountsResponse'>;
 
 /**
  * One choice in a picker. Three fields on purpose — see the backend type: a picker is read by
@@ -125,7 +145,15 @@ export type CreateDriverCommand = Schema<'CreateDriverCommand'>;
 export type UpdateDriverCommand = Schema<'UpdateDriverCommand'>;
 export type DriverUserAccount = Schema<'DriverUserAccountResponse'>;
 export type DriverTrip = Schema<'DriverTripResponse'>;
-export type DriverTripDetail = Schema<'DriverTripDetailResponse'>;
+export type DriverTripDetail = Schema<'DriverTripManifestResponse'>;
+
+/**
+ * One row of the driver's manifest.
+ *
+ * Carries an operational `accessState` and no financial detail at all — the API deliberately
+ * omits amounts, due dates and invoice numbers from a driver's payload.
+ */
+export type DriverManifestPassenger = Schema<'DriverManifestPassengerResponse'>;
 
 /* Fleet --------------------------------------------------------------------------------------- */
 export type VehicleResponse = Schema<'VehicleResponse'>;

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DriverApi, VextoApiError } from '@vexto/api-client';
+import { AuthStore } from '@vexto/auth';
 import type { DriverTrip } from '@vexto/models';
 import { PushNotifications, VxPushToggle } from '@vexto/push';
 import { VxEmptyState, VxErrorState, VxIcon, VxSkeleton, VxStatusBadge } from '@vexto/ui';
@@ -18,9 +19,38 @@ import { formatDate, formatTime } from '@vexto/utilities';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, VxEmptyState, VxErrorState, VxIcon, VxPushToggle, VxSkeleton, VxStatusBadge],
   template: `
-    <div class="p-4">
-      <h1 class="text-lg font-semibold tracking-tight text-ink">Today's trips</h1>
+    <div class="p-4 sm:p-6">
+      <h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">
+        {{ greeting() }}, {{ firstName() }}
+      </h1>
       <p class="mt-1 text-body text-ink-muted">{{ today() }}</p>
+
+      @if (running(); as active) {
+        <!-- The one trip the driver can act on right now, lifted out of the list entirely. On a
+             tablet propped on a dashboard this is the only thing that needs to be readable. -->
+        <a
+          class="mt-5 flex items-center gap-4 rounded-2xl p-5 text-white shadow-raised"
+          style="background: linear-gradient(135deg, var(--vexto-primary) 0%, var(--vexto-primary-active) 100%)"
+          [routerLink]="['/trips', active.tripId]"
+        >
+          <span
+            class="flex size-12 flex-none items-center justify-center rounded-xl"
+            style="background: rgb(255 255 255 / 18%)"
+          >
+            <vx-icon name="live" [size]="24" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-[0.6875rem] font-semibold uppercase tracking-wider opacity-80">
+              Trip in progress
+            </span>
+            <span class="mt-0.5 block truncate text-base font-semibold">{{ active.routeName }}</span>
+            <span class="block truncate text-meta opacity-85">
+              {{ time(active.scheduledStartAtUtc) }} · {{ active.passengerCount }} passengers
+            </span>
+          </span>
+          <vx-icon name="chevron-right" [size]="22" />
+        </a>
+      }
 
       <!--
         Offered here rather than mid-trip: a driver about to set off has a moment to decide, and one
@@ -96,7 +126,15 @@ import { formatDate, formatTime } from '@vexto/utilities';
 export class DriverTripsPage {
   private readonly api = inject(DriverApi);
 
+  private readonly store = inject(AuthStore);
+
   protected readonly time = formatTime;
+  protected readonly firstName = computed(() => this.store.user()?.firstName ?? 'there');
+
+  /** The trip that is running, if any. Null is the normal state for most of the day. */
+  protected readonly running = computed(
+    () => this.loaded().find((trip) => trip.status === 'Started') ?? null,
+  );
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
@@ -129,6 +167,13 @@ export class DriverTripsPage {
 
   protected today(): string {
     return formatDate(new Date());
+  }
+
+  protected greeting(): string {
+    const hour = new Date().getHours();
+
+    // Drivers start before dawn far more often than office staff, so the morning window is wide.
+    return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   }
 
   protected load(): void {

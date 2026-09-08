@@ -25,6 +25,19 @@ export const accounts = {
   },
 };
 
+/**
+ * Vexto's own platform administrator.
+ *
+ * Kept out of `accounts` on purpose: `requireCredentials` insists on every entry there, and the
+ * pilot journey does not need a ServiceAdmin. The visual review does, because the platform surface
+ * and the onboarding wizard are gated on `Tenants.View` — which a TenantOwner correctly does not
+ * hold. A run without this password skips those screenshots rather than failing.
+ */
+export const serviceAdmin = {
+  email: process.env['VEXTO_SERVICE_ADMIN_EMAIL'] ?? 'service.admin@vexto.test',
+  password: process.env['VEXTO_SERVICE_ADMIN_PASSWORD'] ?? '',
+};
+
 /** The operator the demo seed creates. Used to assert the run is pointed at seeded data. */
 export const demoTenantName = process.env['VEXTO_TENANT_NAME'] ?? 'Vexto Demo Transport';
 

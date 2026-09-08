@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { type StatusTone, statusLabel, statusTone } from '@vexto/models';
-import { initials } from '@vexto/utilities';
 import { VxIcon, type VxIconName } from './icon/vx-icon';
 
 /**
@@ -36,34 +35,6 @@ export class VxStatusBadge {
 
   protected readonly resolvedTone = computed(() => this.tone() ?? statusTone(this.status()));
   protected readonly text = computed(() => this.label() ?? statusLabel(this.status()));
-}
-
-/** Initials avatar. Vexto has no user photographs, and a coloured monogram beats a grey silhouette. */
-@Component({
-  selector: 'vx-avatar',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <span
-      class="vx-avatar"
-      [style.width.rem]="rem()"
-      [style.height.rem]="rem()"
-      [style.font-size.rem]="rem() / 3"
-      [attr.title]="name()"
-    >
-      {{ text() }}
-    </span>
-  `,
-})
-export class VxAvatar {
-  readonly name = input<string | null | undefined>(null);
-  readonly secondName = input<string | null | undefined>(null);
-  readonly size = input<'sm' | 'md' | 'lg'>('md');
-
-  protected readonly rem = computed(
-    () => ({ sm: 1.75, md: 2.25, lg: 3 })[this.size()],
-  );
-
-  protected readonly text = computed(() => initials(this.name(), this.secondName()));
 }
 
 /**

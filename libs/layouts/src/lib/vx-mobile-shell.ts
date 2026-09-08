@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService, AuthStore } from '@vexto/auth';
-import { VxConfirmHost, VxIcon, VxToastHost } from '@vexto/ui';
+import { VxConfirmHost, VxIcon, VxThemeToggle, VxToastHost } from '@vexto/ui';
 import type { NavItem } from './navigation';
 import { VxNotificationBell } from './vx-notification-bell';
 
@@ -23,6 +23,7 @@ import { VxNotificationBell } from './vx-notification-bell';
     RouterLinkActive,
     VxIcon,
     VxNotificationBell,
+    VxThemeToggle,
     VxToastHost,
     VxConfirmHost,
   ],
@@ -46,6 +47,10 @@ import { VxNotificationBell } from './vx-notification-bell';
           from the token, so a driver and a passenger each read exactly their own — which is why
           this belongs in the shell rather than being built twice inside two apps.
         -->
+        <span class="flex-none" style="color: var(--vexto-nav-text)">
+          <vx-theme-toggle />
+        </span>
+
         <vx-notification-bell tone="onDark" />
 
         <button
@@ -70,9 +75,10 @@ import { VxNotificationBell } from './vx-notification-bell';
         >
           @for (tab of tabs(); track tab.link) {
             <a
-              class="flex flex-1 flex-col items-center justify-center gap-1 py-3 text-meta font-medium text-ink-muted"
+              class="relative flex flex-1 flex-col items-center justify-center gap-1 py-3 text-meta
+                     font-medium text-ink-muted transition-colors"
               [routerLink]="tab.link"
-              routerLinkActive="!text-primary"
+              routerLinkActive="vx-tab-active"
               [routerLinkActiveOptions]="{ exact: tab.exact ?? false }"
               style="min-height: 56px"
             >

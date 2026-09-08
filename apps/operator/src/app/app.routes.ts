@@ -65,6 +65,33 @@ export const routes: Routes = [
         title: 'Dashboard · Vexto',
       },
       {
+        // Cross-tenant, and reachable only with Tenants.View — a permission no tenant role holds
+        // and one a ServiceAdmin satisfies through the single authorization bypass. There is no
+        // role check here or anywhere else.
+        path: 'platform',
+        canActivate: [permissionGuard(VextoPermissions.Tenants.View)],
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/platform/overview.page').then((m) => m.PlatformOverviewPage),
+            title: 'Platform · Vexto',
+          },
+          {
+            path: 'tenants',
+            loadComponent: () =>
+              import('./features/platform/tenants.page').then((m) => m.PlatformTenantsPage),
+            title: 'Tenants · Vexto',
+          },
+          {
+            path: 'tenants/new',
+            loadComponent: () =>
+              import('./features/platform/tenant-wizard.page').then((m) => m.TenantWizardPage),
+            title: 'Onboard an operator · Vexto',
+          },
+        ],
+      },
+      {
         path: 'passengers',
         canActivate: [permissionGuard(VextoPermissions.Passengers.View)],
         loadChildren: () => import('./features/passengers/passengers.routes').then((m) => m.routes),

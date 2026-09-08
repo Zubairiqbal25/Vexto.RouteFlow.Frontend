@@ -35,19 +35,34 @@ export class PermissionService {
   /** Exposed as a signal so navigation recomputes when the profile is refreshed. */
   readonly granted = this.store.permissions;
 
-  readonly isPlatformAdmin = computed(() => this.store.user()?.isPlatformAdmin ?? false);
+  /**
+   * Whether the signed-in account is Vexto's own platform super administrator.
+   *
+   * Mirrors the API's ICurrentUser.IsServiceAdmin. A ServiceAdmin satisfies every permission
+   * through a single bypass in the authorization handler, and the checks below honour that —
+   * otherwise the shell would hide navigation for actions the server would happily allow.
+   */
+  readonly isServiceAdmin = computed(() => this.store.user()?.isServiceAdmin ?? false);
 
   has(permission: string): boolean {
-    return this.granted().has(permission);
+    return this.isServiceAdmin() || this.granted().has(permission);
   }
 
   hasAny(...permissions: string[]): boolean {
+    if (permissions.length === 0 || this.isServiceAdmin()) {
+      return true;
+    }
+
     const granted = this.granted();
 
-    return permissions.length === 0 || permissions.some((permission) => granted.has(permission));
+    return permissions.some((permission) => granted.has(permission));
   }
 
   hasAll(...permissions: string[]): boolean {
+    if (this.isServiceAdmin()) {
+      return true;
+    }
+
     const granted = this.granted();
 
     return permissions.every((permission) => granted.has(permission));

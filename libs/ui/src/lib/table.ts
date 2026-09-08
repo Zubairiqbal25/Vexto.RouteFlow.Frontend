@@ -149,7 +149,16 @@ export class VxPagination {
       } @else if (isEmpty()) {
         <ng-content select="[empty]" />
       } @else {
-        <div class="vx-table-scroll vx-scroll">
+        <!--
+          One <ng-content>, switched by class rather than by branch.
+
+          Two <ng-content> elements for the same slot do not work: Angular populates the first and
+          leaves the second empty, so putting one in each arm of an @if renders nothing whenever the
+          unpopulated arm is the live one. The container still has to differ — a table scrolls
+          sideways inside the card, and a card grid must not, or the last column is clipped on a
+          narrow window — so the difference is expressed in the class.
+        -->
+        <div [class]="layout() === 'cards' ? 'p-4 sm:p-5' : 'vx-table-scroll vx-scroll'">
           <ng-content />
         </div>
         <vx-pagination
@@ -163,6 +172,8 @@ export class VxPagination {
   `,
 })
 export class VxTableShell {
+  /** Which container the projected body needs. See the template. */
+  readonly layout = input<'table' | 'cards'>('table');
   readonly loading = input(false);
   readonly error = input<string | null>(null);
   readonly isEmpty = input(false);
