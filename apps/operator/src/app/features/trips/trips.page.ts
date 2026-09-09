@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { DriversApi, RoutesApi, TrackingApi, TripsApi, VehiclesApi } from '@vexto/api-client';
-import type { ActiveFleetTrip, PickerOption, TripResponse } from '@vexto/models';
+import type { ActiveFleetTrip, TripResponse } from '@vexto/models';
 import { PermissionService, VextoPermissions } from '@vexto/permissions';
 import {
   ConfirmService,
@@ -13,6 +13,8 @@ import {
   type VxFilterChip,
   VxFilterChips,
   VxPageHeader,
+  VxPicker,
+  type VxPickerOption,
   VxSectionHeader,
   VxSkeletonCard,
   VxSkeletonTable,
@@ -65,6 +67,7 @@ interface TripFilters extends Record<string, unknown> {
     VxFilterBar,
     VxFilterChips,
     VxPageHeader,
+    VxPicker,
     VxSectionHeader,
     VxSkeletonCard,
     VxSkeletonTable,
@@ -103,41 +106,50 @@ interface TripFilters extends Record<string, unknown> {
           (change)="list.setFilter({ serviceDate: value($event) })"
         />
 
-        <select
-          filters
-          class="vx-select w-auto"
-          aria-label="Filter by route"
-          (change)="list.setFilter({ routeId: value($event) })"
-        >
-          <option value="">All routes</option>
-          @for (route of routes(); track route.id) {
-            <option [value]="route.id">{{ route.label }}</option>
-          }
-        </select>
+        <!--
+          Searchable pickers rather than dropdowns, for the same reason as every other entity
+          selector in the product: these were filled from the first fifty picker rows, so an
+          operator with more routes than that could not filter by the rest — and the list ending
+          looked exactly like the list being complete. See VxPicker.
+        -->
+        <div filters class="w-full sm:w-52">
+          <vx-picker
+            inputId="trip-filter-route"
+            placeholder="All routes"
+            emptyLabel="No routes yet."
+            [limit]="20"
+            [clearable]="true"
+            [search]="searchRoutes"
+            [selected]="route()"
+            (chosen)="onRouteChosen($event)"
+          />
+        </div>
 
-        <select
-          filters
-          class="vx-select w-auto"
-          aria-label="Filter by driver"
-          (change)="list.setFilter({ driverId: value($event) })"
-        >
-          <option value="">All drivers</option>
-          @for (driver of drivers(); track driver.id) {
-            <option [value]="driver.id">{{ driver.label }}</option>
-          }
-        </select>
+        <div filters class="w-full sm:w-52">
+          <vx-picker
+            inputId="trip-filter-driver"
+            placeholder="All drivers"
+            emptyLabel="No drivers yet."
+            [limit]="20"
+            [clearable]="true"
+            [search]="searchDrivers"
+            [selected]="driver()"
+            (chosen)="onDriverChosen($event)"
+          />
+        </div>
 
-        <select
-          filters
-          class="vx-select w-auto"
-          aria-label="Filter by vehicle"
-          (change)="list.setFilter({ vehicleId: value($event) })"
-        >
-          <option value="">All vehicles</option>
-          @for (vehicle of vehicles(); track vehicle.id) {
-            <option [value]="vehicle.id">{{ vehicle.label }}</option>
-          }
-        </select>
+        <div filters class="w-full sm:w-52">
+          <vx-picker
+            inputId="trip-filter-vehicle"
+            placeholder="All vehicles"
+            emptyLabel="No vehicles yet."
+            [limit]="20"
+            [clearable]="true"
+            [search]="searchVehicles"
+            [selected]="vehicle()"
+            (chosen)="onVehicleChosen($event)"
+          />
+        </div>
 
         <span trailing class="flex items-center gap-3">
           <span class="hidden text-meta text-ink-muted sm:inline">
@@ -286,9 +298,22 @@ export class TripsPage {
   private readonly preference = listViewPreference('trips');
   protected readonly layout = this.preference.view;
 
-  protected readonly routes = signal<PickerOption[]>([]);
-  protected readonly drivers = signal<PickerOption[]>([]);
-  protected readonly vehicles = signal<PickerOption[]>([]);
+  protected readonly route = signal<VxPickerOption | null>(null);
+  protected readonly driver = signal<VxPickerOption | null>(null);
+  protected readonly vehicle = signal<VxPickerOption | null>(null);
+
+  /**
+   * Stable references, so the pickers' required inputs keep one identity across change detection
+   * and the debounced search stream is not restarted on every render.
+   */
+  protected readonly searchRoutes = (term: string) =>
+    this.routesApi.picker({ search: term || undefined });
+
+  protected readonly searchDrivers = (term: string) =>
+    this.driversApi.picker({ search: term || undefined });
+
+  protected readonly searchVehicles = (term: string) =>
+    this.vehiclesApi.picker({ search: term || undefined });
   protected readonly fleet = signal<ActiveFleetTrip[]>([]);
 
   /** The trip shown in the quick-view drawer. Null is the normal state. */
@@ -344,27 +369,24 @@ export class TripsPage {
     return groupTrips(filtered);
   });
 
-  /**
-   * The filter dropdowns come from the picker endpoints, not from paging the full lists.
-   *
-   * They used to ask for a hundred rows of each and hope that covered it, which silently dropped
-   * the 101st route from the filter and shipped three full datasets to render three selects.
-   */
+  protected onRouteChosen(option: VxPickerOption | null): void {
+    this.route.set(option);
+    this.list.setFilter({ routeId: option?.id ?? '' });
+  }
+
+  protected onDriverChosen(option: VxPickerOption | null): void {
+    this.driver.set(option);
+    this.list.setFilter({ driverId: option?.id ?? '' });
+  }
+
+  protected onVehicleChosen(option: VxPickerOption | null): void {
+    this.vehicle.set(option);
+    this.list.setFilter({ vehicleId: option?.id ?? '' });
+  }
+
   constructor() {
-    this.routesApi.picker({ pageSize: 50 }).subscribe({
-      next: (options) => this.routes.set(options),
-      error: () => this.routes.set([]),
-    });
-
-    this.driversApi.picker({ pageSize: 50 }).subscribe({
-      next: (options) => this.drivers.set(options),
-      error: () => this.drivers.set([]),
-    });
-
-    this.vehiclesApi.picker({ pageSize: 50 }).subscribe({
-      next: (options) => this.vehicles.set(options),
-      error: () => this.vehicles.set([]),
-    });
+    // Nothing is fetched here any more: each picker asks the server when it is opened, and most
+    // visits to the board filter by nothing at all.
 
     // One feed for the whole board. Without it every card would have to ask whether its own bus is
     // reporting, which is the N+1 this page most easily falls into.

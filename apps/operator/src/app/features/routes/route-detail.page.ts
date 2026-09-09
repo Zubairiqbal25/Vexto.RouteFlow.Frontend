@@ -1,172 +1,176 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
-import { RoutesApi, TripsApi, VextoApiError } from '@vexto/api-client';
-import { type VxMapMarker, VxMap } from '@vexto/maps';
-import type { RouteDetailResponse, RouteMapPreview, TripResponse } from '@vexto/models';
+import { RoutesApi, VextoApiError } from '@vexto/api-client';
 import { CanDirective, VextoPermissions } from '@vexto/permissions';
 import {
   ToastService,
+  type VxCardAction,
   type VxTab,
-  VxEmptyState,
   VxErrorState,
   VxIcon,
   VxPageHeader,
-  VxSectionCard,
+  VxQuickActions,
   VxSkeleton,
   VxStatusBadge,
   VxTabs,
 } from '@vexto/ui';
-import { formatDate, formatDateTime } from '@vexto/utilities';
+import { formatDayTime } from '@vexto/utilities';
+import { GenerateTripsDrawer } from './generate-trips.drawer';
 import { RouteForm } from './route-form';
+import { RouteOverviewTab } from './route-overview.tab';
 import { RoutePassengersTab } from './route-passengers.tab';
 import { RouteResourcesTab } from './route-resources.tab';
 import { RouteScheduleTab } from './route-schedule.tab';
 import { RouteStopsTab } from './route-stops.tab';
+import { RouteTripsTab } from './route-trips.tab';
+import { RouteWorkspaceStore } from './route-workspace.store';
 
-type TabId = 'overview' | 'map' | 'stops' | 'passengers' | 'resources' | 'schedule' | 'trips';
+type TabId = 'overview' | 'stops' | 'passengers' | 'crew' | 'schedule' | 'trips';
 
 /**
- * Everything about one route.
+ * The route operations workspace.
  *
- * The header answers the three questions a planner has on arrival — what is this route, is it
- * running, and how big is it — before any tab is opened. Counts come from the detail response, so
- * the header costs one request rather than one per tab.
+ * The header answers, before anything is clicked: what is this route, is it running, **is it ready
+ * to produce trips**, and how big is it. Readiness is the addition that matters — a route can be
+ * fully configured in every visible respect and still be unable to generate a single journey, and
+ * the old header had no way to say so. Now the answer is a line of text at the top, and each gap
+ * names the thing to go and do.
+ *
+ * Data is loaded once by `RouteWorkspaceStore` and read by every tab, so switching tabs costs
+ * nothing and no collection is fetched twice.
  */
 @Component({
   selector: 'vexto-route-detail-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [RouteWorkspaceStore],
   imports: [
     CanDirective,
+    GenerateTripsDrawer,
     RouteForm,
+    RouteOverviewTab,
     RoutePassengersTab,
     RouteResourcesTab,
     RouteScheduleTab,
     RouteStopsTab,
-    RouterLink,
-    VxEmptyState,
+    RouteTripsTab,
     VxErrorState,
     VxIcon,
     VxPageHeader,
-    VxSectionCard,
+    VxQuickActions,
     VxSkeleton,
     VxStatusBadge,
     VxTabs,
-    VxMap,
   ],
   template: `
     @if (error(); as message) {
-      <vx-error-state title="We could not load this route" [message]="message" (retry)="load()" />
+      <vx-error-state title="We could not load this route" [message]="message" (retry)="reload()" />
     } @else {
       <vx-page-header
         [title]="detail()?.route?.name ?? 'Route'"
-        [breadcrumbs]="[{ label: 'Routes', link: '/routes' }, { label: detail()?.route?.code ?? '' }]"
+        [description]="detail()?.route?.code ?? null"
+        [breadcrumbs]="breadcrumbs()"
       >
         <ng-container actions>
-          @if (detail(); as loaded) {
-            <a
-              *vxCan="viewTrips"
-              class="vx-btn vx-btn-secondary"
-              [routerLink]="['/trips']"
-              [queryParams]="{ routeId: loaded.route.id }"
+          @if (detail()) {
+            <button
+              *vxCan="manageTrips"
+              type="button"
+              class="vx-btn vx-btn-primary"
+              (click)="generateOpen.set(true)"
             >
               <vx-icon name="trips" [size]="16" />
-              View trips
-            </a>
-            <!--
-              A route is created as a draft and cannot generate trips until it is in service. Without
-              this control a route built in the portal is a dead end: everything about it can be
-              configured and none of it will ever produce a journey.
-            -->
-            @if (loaded.route.status === 'Active') {
-              <button
-                *vxCan="manage"
-                type="button"
-                class="vx-btn vx-btn-secondary"
-                [disabled]="changingStatus()"
-                (click)="deactivate()"
-              >
-                Take out of service
-              </button>
-            } @else {
-              <button
-                *vxCan="manage"
-                type="button"
-                class="vx-btn vx-btn-secondary"
-                [disabled]="changingStatus()"
-                (click)="activate()"
-              >
-                <vx-icon name="check" [size]="16" />
-                Activate route
-              </button>
-            }
+              Generate trips
+            </button>
 
             <button
               *vxCan="manage"
               type="button"
-              class="vx-btn vx-btn-primary"
+              class="vx-btn vx-btn-secondary"
               (click)="editOpen.set(true)"
             >
               <vx-icon name="edit" [size]="16" />
-              Edit Route
+              Edit route
             </button>
+
+            <vx-quick-actions
+              *vxCan="manage"
+              [actions]="moreActions()"
+              label="More route actions"
+              (selected)="onMoreAction($event)"
+            />
           }
         </ng-container>
       </vx-page-header>
 
+      <!-- Status strip ------------------------------------------------------------------------ -->
       <section class="vx-card vx-card-pad mb-6">
         @if (loading()) {
           <div class="flex flex-col gap-3">
             <vx-skeleton width="14rem" height="1.5rem" />
             <vx-skeleton width="22rem" height="1rem" />
+            <div class="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-4">
+              @for (tile of [0, 1, 2, 3]; track tile) {
+                <vx-skeleton height="3rem" />
+              }
+            </div>
           </div>
         } @else if (detail(); as loaded) {
           <div class="flex flex-wrap items-start justify-between gap-6">
             <div class="min-w-0">
-              <div class="flex flex-wrap items-center gap-3">
-                <h2 class="text-lg font-semibold tracking-tight text-ink">{{ loaded.route.name }}</h2>
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="vx-section-label">Status</p>
                 <vx-status-badge [status]="loaded.route.status" />
               </div>
-              <p class="mt-1 flex flex-wrap items-center gap-2 text-meta text-ink-muted">
-                <span class="font-medium text-ink-secondary">{{ loaded.route.code }}</span>
-                <span aria-hidden="true">·</span>
-                <span>{{ loaded.route.direction }}</span>
+
+              <div class="mt-3 flex flex-wrap items-center gap-2">
+                <p class="vx-section-label">Readiness</p>
+                @if (ready()) {
+                  <vx-status-badge
+                    tone="success"
+                    icon="check-circle"
+                    label="Ready for trip generation"
+                  />
+                } @else {
+                  @for (gap of gaps(); track gap.id) {
+                    <vx-status-badge
+                      [tone]="gap.level === 'critical' ? 'danger' : 'warning'"
+                      icon="alert"
+                      [label]="gap.label"
+                    />
+                  }
+                }
+              </div>
+
+              <p class="mt-3 text-meta text-ink-muted">
+                {{ loaded.route.direction }}
                 @if (loaded.route.defaultStartTime) {
-                  <span aria-hidden="true">·</span>
-                  <span>Departs {{ loaded.route.defaultStartTime.slice(0, 5) }}</span>
+                  · Departs {{ loaded.route.defaultStartTime.slice(0, 5) }}
                 }
               </p>
-              @if (loaded.route.description) {
-                <p class="mt-3 max-w-prose text-body text-ink-secondary">
-                  {{ loaded.route.description }}
-                </p>
-              }
             </div>
 
             <dl class="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
               <div>
                 <dt class="vx-section-label">Stops</dt>
-                <dd class="mt-1 text-xl font-semibold text-ink">
+                <dd class="mt-1 text-xl font-semibold tabular-nums text-ink">
                   {{ loaded.summary.activeStopCount }}
                 </dd>
               </div>
               <div>
                 <dt class="vx-section-label">Passengers</dt>
-                <dd class="mt-1 text-xl font-semibold text-ink">
+                <dd class="mt-1 text-xl font-semibold tabular-nums text-ink">
                   {{ loaded.summary.activePassengerCount }}
                 </dd>
               </div>
               <div>
-                <dt class="vx-section-label">Driver</dt>
-                <dd class="mt-1 truncate text-body font-medium text-ink">
-                  {{ loaded.summary.currentDriverName ?? 'Unassigned' }}
+                <dt class="vx-section-label">Schedules</dt>
+                <dd class="mt-1 text-xl font-semibold tabular-nums text-ink">
+                  {{ loaded.summary.activeScheduleCount }}
                 </dd>
               </div>
               <div>
-                <dt class="vx-section-label">Vehicle</dt>
-                <dd class="mt-1 truncate text-body font-medium text-ink">
-                  {{ loaded.summary.currentVehiclePlateNumber ?? 'Unassigned' }}
-                </dd>
+                <dt class="vx-section-label">Next trip</dt>
+                <dd class="mt-1 text-body font-medium text-ink">{{ nextTripLabel() }}</dd>
               </div>
             </dl>
           </div>
@@ -178,152 +182,22 @@ type TabId = 'overview' | 'map' | 'stops' | 'passengers' | 'resources' | 'schedu
       <div class="mt-6">
         @switch (tab()) {
           @case ('overview') {
-            <vx-section-card title="Overview" description="A summary of how this route is set up.">
-              @if (detail(); as loaded) {
-                <dl class="grid gap-x-8 gap-y-5 sm:grid-cols-2">
-                  <div>
-                    <dt class="vx-section-label">Code</dt>
-                    <dd class="mt-1 text-body text-ink">{{ loaded.route.code }}</dd>
-                  </div>
-                  <div>
-                    <dt class="vx-section-label">Direction</dt>
-                    <dd class="mt-1 text-body text-ink">{{ loaded.route.direction }}</dd>
-                  </div>
-                  <div>
-                    <dt class="vx-section-label">Active schedules</dt>
-                    <dd class="mt-1 text-body text-ink">{{ loaded.summary.activeScheduleCount }}</dd>
-                  </div>
-                  <div>
-                    <dt class="vx-section-label">Vehicle capacity</dt>
-                    <dd class="mt-1 text-body text-ink">
-                      @if (loaded.summary.currentVehicleCapacity !== null) {
-                        {{ loaded.summary.currentVehicleCapacity }} seats
-                        @if (overCapacity()) {
-                          <span class="ms-2">
-                            <vx-status-badge tone="warning" icon="alert" label="Over capacity" />
-                          </span>
-                        }
-                      } @else {
-                        No vehicle assigned
-                      }
-                    </dd>
-                  </div>
-                  <div>
-                    <dt class="vx-section-label">Created</dt>
-                    <dd class="mt-1 text-body text-ink">{{ date(loaded.route.createdAtUtc) }}</dd>
-                  </div>
-                  <div>
-                    <dt class="vx-section-label">Last updated</dt>
-                    <dd class="mt-1 text-body text-ink">
-                      {{ loaded.route.updatedAtUtc ? dateTime(loaded.route.updatedAtUtc) : '—' }}
-                    </dd>
-                  </div>
-                </dl>
-              }
-            </vx-section-card>
-          }
-          @case ('map') {
-            <vx-section-card
-              title="Route map"
-              description="The stops in the order you planned them, and the road between them."
-            >
-              @if (preview(); as drawn) {
-                <div class="mb-4 flex flex-wrap gap-6">
-                  <div>
-                    <dt class="vx-section-label">Stops</dt>
-                    <dd class="mt-1 text-body text-ink">{{ drawn.stops.length }}</dd>
-                  </div>
-                  <div>
-                    <dt class="vx-section-label">Distance</dt>
-                    <dd class="mt-1 text-body text-ink">{{ distance() }}</dd>
-                  </div>
-                  <div>
-                    <dt class="vx-section-label">Driving time</dt>
-                    <dd class="mt-1 text-body text-ink">{{ duration() }}</dd>
-                  </div>
-                </div>
-
-                @if (drawn.stops.length === 0) {
-                  <p class="text-body text-ink-muted">
-                    This route has no active stops yet, so there is nothing to draw. Add stops on
-                    the Stops tab.
-                  </p>
-                } @else {
-                  <div class="h-[26rem] w-full">
-                    <vx-map
-                      [markers]="stopMarkers()"
-                      [polyline]="drawn.polyline"
-                      [fitToMarkers]="true"
-                    />
-                  </div>
-
-                  @if (!drawn.polyline) {
-                    <p class="mt-3 text-meta text-ink-muted">
-                      The stops are shown without a road path: either this route has a single stop,
-                      or no map provider is configured for this environment.
-                    </p>
-                  }
-                }
-              } @else if (previewError()) {
-                <p class="text-body text-ink-muted">We could not load the route map.</p>
-              } @else {
-                <div class="vx-skeleton h-[26rem] w-full rounded-2xl"></div>
-              }
-            </vx-section-card>
+            <vexto-route-overview-tab (openTab)="select($event)" />
           }
           @case ('stops') {
-            <vexto-route-stops-tab [routeId]="routeId()" (changed)="load()" />
+            <vexto-route-stops-tab />
           }
           @case ('passengers') {
-            <vexto-route-passengers-tab [routeId]="routeId()" (changed)="load()" />
+            <vexto-route-passengers-tab />
           }
-          @case ('resources') {
-            <vexto-route-resources-tab [routeId]="routeId()" (changed)="load()" />
+          @case ('crew') {
+            <vexto-route-resources-tab />
           }
           @case ('schedule') {
-            <vexto-route-schedule-tab [routeId]="routeId()" (changed)="load()" />
+            <vexto-route-schedule-tab />
           }
           @case ('trips') {
-            <vx-section-card
-              title="Recent trips"
-              description="Trips generated from this route."
-              [padded]="false"
-            >
-              @if (trips().length === 0) {
-                <vx-empty-state
-                  icon="trips"
-                  title="No trips yet"
-                  description="Add a schedule, then generate trips for a date range."
-                />
-              } @else {
-                <div class="vx-table-scroll vx-scroll">
-                  <table class="vx-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Service date</th>
-                        <th scope="col">Scheduled</th>
-                        <th scope="col">Driver</th>
-                        <th scope="col">Vehicle</th>
-                        <th scope="col">Passengers</th>
-                        <th scope="col">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (trip of trips(); track trip.id) {
-                        <tr class="cursor-pointer" (click)="openTrip(trip)">
-                          <td class="vx-cell-strong">{{ date(trip.serviceDate) }}</td>
-                          <td>{{ dateTime(trip.scheduledStartAtUtc) }}</td>
-                          <td>{{ trip.driver?.name ?? 'Unassigned' }}</td>
-                          <td>{{ trip.vehicle?.plateNumber ?? 'Unassigned' }}</td>
-                          <td>{{ trip.passengerCount }}</td>
-                          <td><vx-status-badge [status]="trip.status" /></td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              }
-            </vx-section-card>
+            <vexto-route-trips-tab />
           }
         }
       </div>
@@ -334,151 +208,111 @@ type TabId = 'overview' | 'map' | 'stops' | 'passengers' | 'resources' | 'schedu
         (dismissed)="editOpen.set(false)"
         (saved)="onEdited()"
       />
+
+      <vexto-generate-trips-drawer
+        [open]="generateOpen()"
+        (dismissed)="generateOpen.set(false)"
+        (generated)="onGenerated()"
+      />
     }
   `,
 })
 export class RouteDetailPage {
   private readonly api = inject(RoutesApi);
-  private readonly tripsApi = inject(TripsApi);
   private readonly toast = inject(ToastService);
-  private readonly router = inject(Router);
+  private readonly store = inject(RouteWorkspaceStore);
 
   /** Bound from the `:routeId` segment by `withComponentInputBinding`. */
   readonly routeId = input.required<string>();
 
   protected readonly manage = VextoPermissions.Routes.Manage;
-  protected readonly viewTrips = VextoPermissions.Trips.View;
-  protected readonly date = formatDate;
-  protected readonly dateTime = formatDateTime;
+  protected readonly manageTrips = VextoPermissions.Trips.Manage;
 
-  protected readonly detail = signal<RouteDetailResponse | null>(null);
-  protected readonly preview = signal<RouteMapPreview | null>(null);
-  protected readonly previewError = signal(false);
-  protected readonly trips = signal<TripResponse[]>([]);
+  protected readonly detail = this.store.detail;
+  protected readonly loading = this.store.loading;
+  protected readonly error = this.store.error;
+  protected readonly gaps = this.store.gaps;
+  protected readonly ready = this.store.ready;
 
-  /**
-   * The stops as map pins, numbered by the operator's own sequence.
-   *
-   * The first and last are tinted differently so the direction of travel is readable without
-   * reading the numbers — which is the question somebody opens this tab to answer.
-   */
-  protected readonly stopMarkers = computed<VxMapMarker[]>(() => {
-    const stops = this.preview()?.stops ?? [];
-
-    return stops.map((stop, index) => ({
-      id: stop.id,
-      lat: stop.latitude,
-      lng: stop.longitude,
-      label: `${stop.sequence}. ${stop.name}`,
-      tone: index === 0 ? 'success' : index === stops.length - 1 ? 'danger' : 'primary',
-    }));
-  });
-
-  protected readonly distance = computed(() => {
-    const metres = this.preview()?.distanceMeters;
-
-    return metres === null || metres === undefined ? '—' : `${(metres / 1000).toFixed(1)} km`;
-  });
-
-  protected readonly duration = computed(() => {
-    const seconds = this.preview()?.durationSeconds;
-
-    if (seconds === null || seconds === undefined) {
-      return '—';
-    }
-
-    const minutes = Math.round(seconds / 60);
-
-    return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
-  });
-  protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
   protected readonly tab = signal<TabId>('overview');
   protected readonly editOpen = signal(false);
+  protected readonly generateOpen = signal(false);
   protected readonly changingStatus = signal(false);
+
+  protected readonly breadcrumbs = computed(() => [
+    { label: 'Routes', link: '/routes' },
+    { label: this.detail()?.route.name ?? 'Route' },
+  ]);
+
+  protected readonly nextTripLabel = computed(() => {
+    const trip = this.store.nextTrip();
+
+    return trip ? formatDayTime(trip.scheduledStartAtUtc) : 'None scheduled';
+  });
 
   protected readonly tabs = computed<VxTab[]>(() => {
     const summary = this.detail()?.summary;
 
     return [
       { id: 'overview', label: 'Overview' },
-      { id: 'map', label: 'Map' },
-      { id: 'stops', label: 'Stops', count: summary?.activeStopCount ?? null },
-      { id: 'passengers', label: 'Passengers', count: summary?.activePassengerCount ?? null },
-      { id: 'resources', label: 'Resources' },
-      { id: 'schedule', label: 'Schedule', count: summary?.activeScheduleCount ?? null },
-      { id: 'trips', label: 'Trips', count: this.trips().length || null },
+      { id: 'stops', label: 'Stops & map', count: numberOrNull(summary?.activeStopCount) },
+      { id: 'passengers', label: 'Passengers', count: numberOrNull(summary?.activePassengerCount) },
+      { id: 'crew', label: 'Driver & vehicle' },
+      { id: 'schedule', label: 'Schedule', count: numberOrNull(summary?.activeScheduleCount) },
+      { id: 'trips', label: 'Trips', count: this.store.upcomingTrips().length || null },
     ];
   });
 
-  /** More passengers than seats is the mistake worth catching before the bus arrives. */
-  protected readonly overCapacity = computed(() => {
-    const summary = this.detail()?.summary;
-    const capacity = summary?.currentVehicleCapacity;
+  /**
+   * The actions a route has that are neither of the two primary ones.
+   *
+   * Activate and deactivate swap rather than both appearing greyed: an operator scanning this menu
+   * needs the next action, not an inventory of the ones that do not apply.
+   */
+  protected readonly moreActions = computed<readonly VxCardAction[]>(() => {
+    const active = this.detail()?.route.status === 'Active';
 
-    return capacity !== null && capacity !== undefined && summary
-      ? summary.activePassengerCount > capacity
-      : false;
+    return [
+      active
+        ? { id: 'deactivate', label: 'Take out of service', icon: 'power' as const, danger: true }
+        : { id: 'activate', label: 'Activate route', icon: 'check' as const },
+      { id: 'view-trips', label: 'View all trips', icon: 'trips' as const },
+    ];
   });
 
   constructor() {
     effect(() => {
-      this.routeId();
-      this.load();
+      const routeId = this.routeId();
+
+      this.store.load(routeId);
     });
   }
 
-  protected load(): void {
-    this.loading.set(true);
-    this.error.set(null);
+  protected reload(): void {
+    this.store.load(this.routeId());
+  }
 
-    this.api.get(this.routeId()).subscribe({
-      next: (detail) => {
-        this.detail.set(detail);
-        this.loading.set(false);
-      },
-      error: (error: unknown) => {
-        this.loading.set(false);
-        this.error.set(
-          error instanceof VextoApiError ? error.message : 'We could not load this route.',
-        );
-      },
-    });
+  protected select(tab: string): void {
+    this.tab.set(tab as TabId);
+  }
 
-    // Recent trips are small and cheap; loading them here keeps the tab instant.
-    this.tripsApi.list({ routeId: this.routeId(), pageSize: 10 }).subscribe({
-      next: (result) => this.trips.set(result.items),
-      error: () => this.trips.set([]),
-    });
-
-    // The preview is loaded with the rest rather than on tab open: the backend caches it, so a
-    // repeat visit costs nothing, and the tab is instant the first time somebody clicks it. A
-    // failure here is contained to the map tab — it must not take the route page down.
-    this.previewError.set(false);
-
-    this.api.mapPreview(this.routeId()).subscribe({
-      next: (preview) => this.preview.set(preview),
-      error: () => {
-        this.preview.set(null);
-        this.previewError.set(true);
-      },
-    });
+  protected onMoreAction(action: string): void {
+    if (action === 'activate') {
+      this.changeStatus(this.api.activate(this.routeId()), 'This route is now in service.');
+    } else if (action === 'deactivate') {
+      this.changeStatus(this.api.deactivate(this.routeId()), 'This route is out of service.');
+    } else if (action === 'view-trips') {
+      this.tab.set('trips');
+    }
   }
 
   /**
-   * Puts the route into service.
+   * Puts the route into or out of service.
    *
    * Refused by the API for a route with no active stop, which is the mistake worth catching: a
-   * route with nowhere to collect anybody would generate trips carrying an empty manifest.
+   * route with nowhere to collect anybody would generate trips carrying an empty manifest. The
+   * refusal's own wording is shown rather than a generic failure.
    */
-  protected activate(): void {
-    this.changeStatus(this.api.activate(this.routeId()), 'This route is now in service.');
-  }
-
-  protected deactivate(): void {
-    this.changeStatus(this.api.deactivate(this.routeId()), 'This route is out of service.');
-  }
-
   private changeStatus(request: Observable<unknown>, message: string): void {
     if (this.changingStatus()) {
       return;
@@ -490,7 +324,7 @@ export class RouteDetailPage {
       next: () => {
         this.changingStatus.set(false);
         this.toast.success(message);
-        this.load();
+        this.store.refreshDetail();
       },
       error: (error: unknown) => {
         this.changingStatus.set(false);
@@ -501,17 +335,19 @@ export class RouteDetailPage {
     });
   }
 
-  protected select(tab: string): void {
-    this.tab.set(tab as TabId);
-  }
-
   protected onEdited(): void {
     this.editOpen.set(false);
     this.toast.success('Route updated.');
-    this.load();
+    this.store.refreshDetail();
   }
 
-  protected openTrip(trip: TripResponse): void {
-    void this.router.navigate(['/trips', trip.id]);
+  protected onGenerated(): void {
+    this.store.refreshTrips();
+    this.store.refreshDetail();
   }
+}
+
+/** A tab count that hides itself at zero rather than showing a `0` badge on every route. */
+function numberOrNull(value: number | string | null | undefined): number | null {
+  return value === null || value === undefined ? null : Number(value) || null;
 }

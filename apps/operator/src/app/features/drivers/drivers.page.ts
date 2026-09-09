@@ -26,6 +26,7 @@ import { PagedList } from '../../shared/paged-list';
 import { DriverCard } from './driver-card';
 import { DriverDrawer } from './driver-drawer';
 import { DriverForm } from './driver-form';
+import { openFormOnNewParam } from '../../shared/new-record';
 
 interface DriverFilters extends Record<string, unknown> {
   search: string;
@@ -302,6 +303,11 @@ export class DriversPage {
     }
 
     return days <= EXPIRY_WARNING_DAYS ? 'warning' : null;
+  }
+
+  constructor() {
+    // Lets the command palette’s “Create…” quick action land here with the form already open.
+    openFormOnNewParam(() => this.add());
   }
 
   protected add(): void {

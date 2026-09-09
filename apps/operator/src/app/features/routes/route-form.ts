@@ -11,6 +11,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RoutesApi, VextoApiError } from '@vexto/api-client';
 import type { RouteDirection, RouteResponse } from '@vexto/models';
 import { ToastService, VxField, VxFormSection, VxModal } from '@vexto/ui';
+import { unsavedChangesGuard } from '../../shared/unsaved-changes';
 
 const DIRECTIONS: readonly RouteDirection[] = ['Outbound', 'Return', 'Circular', 'Other'];
 
@@ -25,7 +26,7 @@ const DIRECTIONS: readonly RouteDirection[] = ['Outbound', 'Return', 'Circular',
       [dismissable]="!busy()"
       [title]="route() ? 'Edit route' : 'New route'"
       description="A route is a repeatable journey. Stops, passengers and schedules are added next."
-      (closed)="dismissed.emit()"
+      (closed)="tryDismiss()"
     >
       <form [formGroup]="form" (ngSubmit)="submit()" id="route-form">
         @if (formError(); as message) {
@@ -105,7 +106,7 @@ const DIRECTIONS: readonly RouteDirection[] = ['Outbound', 'Return', 'Circular',
         footer
         class="vx-btn vx-btn-secondary"
         [disabled]="busy()"
-        (click)="dismissed.emit()"
+        (click)="tryDismiss()"
       >
         Cancel
       </button>
@@ -129,6 +130,20 @@ export class RouteForm {
   readonly open = input(false);
   readonly route = input<RouteResponse | null>(null);
   readonly dismissed = output<void>();
+
+  private readonly confirmDiscard = unsavedChangesGuard();
+
+  /**
+   * Closes the form, asking first when there is unsaved work in it.
+   *
+   * Every way out of this form routes through here — the close button, the backdrop and Escape all
+   * raise the same event — so there is no path that quietly discards what somebody typed.
+   */
+  protected async tryDismiss(): Promise<void> {
+    if (await this.confirmDiscard(this.form)) {
+      this.dismissed.emit();
+    }
+  }
   readonly saved = output<RouteResponse>();
 
   protected readonly directions = DIRECTIONS;

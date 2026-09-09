@@ -139,9 +139,8 @@ export const routes: Routes = [
       {
         path: 'agreements',
         canActivate: [permissionGuard(VextoPermissions.Agreements.View)],
-        loadComponent: () =>
-          import('./features/agreements/agreements.page').then((m) => m.AgreementsPage),
-        title: 'Agreements · Vexto',
+        loadChildren: () =>
+          import('./features/agreements/agreements.routes').then((m) => m.routes),
       },
       {
         path: 'settings',

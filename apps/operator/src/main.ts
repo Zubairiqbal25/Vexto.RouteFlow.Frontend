@@ -7,6 +7,7 @@ import {
 import { bootstrapApplication } from '@angular/platform-browser';
 import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
 import { AUTH_STORAGE_KEY, authInterceptor, tenantContextInterceptor } from '@vexto/auth';
+import { VX_NOTIFICATION_LINKS } from '@vexto/layouts';
 import { PhotoSource } from '@vexto/api-client';
 import { VX_PHOTO_RESOLVER } from '@vexto/ui';
 import { VEXTO_CONFIG, loadRuntimeConfig } from '@vexto/utilities';
@@ -34,6 +35,14 @@ async function bootstrap(): Promise<void> {
       provideHttpClient(withInterceptors([authInterceptor, tenantContextInterceptor])),
       { provide: VEXTO_CONFIG, useValue: config },
       { provide: AUTH_STORAGE_KEY, useValue: 'vexto.operator.session' },
+
+      // Where a notification goes in *this* application. The operator portal can show both kinds
+      // of record, so both resolve. See VX_NOTIFICATION_LINKS.
+      {
+        provide: VX_NOTIFICATION_LINKS,
+        useValue: (target: 'trip' | 'invoice', id: string) =>
+          target === 'trip' ? `/trips/${id}` : `/billing/invoices/${id}`,
+      },
 
       // Lets <vx-avatar> fetch an authorized photo without @vexto/ui depending on the API client.
       // See VX_PHOTO_RESOLVER.

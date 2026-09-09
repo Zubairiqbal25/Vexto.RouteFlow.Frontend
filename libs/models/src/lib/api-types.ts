@@ -103,6 +103,10 @@ export type DashboardAttendance = Schema<'DashboardAttendanceResponse'>;
 export type DashboardTripTrend = Schema<'DashboardTripTrendResponse'>;
 export type DashboardTrendPoint = Schema<'DashboardTrendPointResponse'>;
 
+/** What needs somebody to do something today. Counted on the server; empty when nothing does. */
+export type AttentionResponse = Schema<'AttentionResponse'>;
+export type AttentionItem = Schema<'AttentionItemResponse'>;
+
 /** What a vehicle is running now and next. Batched per page; see VehicleOperationsEndpoints. */
 export type VehicleOperations = Schema<'VehicleOperationsResponse'>;
 
@@ -127,6 +131,22 @@ export type AgreementDetailResponse = Schema<'AgreementDetailResponse'>;
 export type AgreementType = Schema<'AgreementType'>;
 export type CreateAgreementCommand = Schema<'CreateAgreementCommand'>;
 export type UpdateAgreementCommand = Schema<'UpdateAgreementCommand'>;
+export type AgreementDocument = Schema<'AgreementDocumentResponse'>;
+/**
+ * The four document kinds the upload endpoint accepts.
+ *
+ * Written out rather than generated: the backend takes the type as a query-string enum, so it does
+ * not appear as a schema in the OpenAPI document. A drift here is caught by the API refusing the
+ * value, which is the failure mode a form should have anyway.
+ */
+export type AgreementDocumentType =
+  | 'Contract'
+  | 'TradeLicense'
+  | 'NoObjectionCertificate'
+  | 'Other';
+
+/** One deterministic condition true about an operator right now. Never a score. */
+export type TenantHealthIndicator = Schema<'TenantHealthIndicatorResponse'>;
 
 /* Passengers ---------------------------------------------------------------------------------- */
 export type PassengerResponse = Schema<'PassengerResponse'>;
@@ -200,6 +220,20 @@ export type TripAttendanceSummary = Schema<'TripAttendanceSummaryResponse'>;
 export type ChangeTripResourcesRequest = Schema<'ChangeTripResourcesRequest'>;
 export type DriverNextStop = Schema<'DriverNextStopResponse'>;
 export type DriverNextStopDetail = Schema<'DriverNextStopDetailResponse'>;
+
+/**
+ * A trip's operational timeline. Every entry is a row the backend wrote when the thing happened —
+ * nothing here is derived in the browser, which is what makes it safe to show as a record.
+ */
+export type TripActivity = Schema<'TripActivityResponse'>;
+export type TripActivityEvent = Schema<'TripActivityEventResponse'>;
+
+/**
+ * The operator's manifest row: the trip's own facts plus photo availability and transport access.
+ * Deliberately carries no amount — the manifest is an operational surface. See the backend type.
+ */
+export type OperatorTripManifest = Schema<'OperatorTripManifestResponse'>;
+export type OperatorManifestPassenger = Schema<'OperatorManifestPassengerResponse'>;
 
 /* Tracking ------------------------------------------------------------------------------------ */
 export type TripLocation = Schema<'TripLocationResponse'>;

@@ -1,42 +1,34 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  effect,
-  inject,
-  input,
-  output,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RoutesApi, VextoApiError } from '@vexto/api-client';
+import { type VxMapMarker, VxMap } from '@vexto/maps';
 import type { RouteStop, RouteStopType } from '@vexto/models';
-import { CanDirective, VextoPermissions } from '@vexto/permissions';
+import { CanDirective, PermissionService, VextoPermissions } from '@vexto/permissions';
 import {
   ConfirmService,
   ToastService,
   VxEmptyState,
-  VxErrorState,
   VxField,
   VxFormSection,
   VxIcon,
   VxModal,
   VxSectionCard,
-  VxSkeleton,
-  VxStatusBadge,
 } from '@vexto/ui';
 import { humanizeEnum } from '@vexto/utilities';
+import { RouteTimeline } from './route-timeline';
+import { RouteWorkspaceStore } from './route-workspace.store';
 
 const STOP_TYPES: readonly RouteStopType[] = ['Pickup', 'DropOff', 'PickupAndDropOff'];
 
 /**
- * The stops on a route, as an ordered timeline.
+ * The stops of a route, as a timeline beside the map they describe.
  *
- * A route is a *sequence*, and a plain table hides that. The numbered rail is the shape of the
- * journey, which is what a planner is actually checking when they open this tab.
+ * Side by side rather than on two tabs, because they are two views of one answer: the timeline says
+ * what the order is and the map says whether that order makes geographic sense. Selecting in either
+ * highlights the other — a stop named "Gate 4" means nothing until you can see where Gate 4 is.
  *
- * Reordering is done with move up/down rather than drag: it works with a keyboard and on a touch
- * screen, and it maps exactly onto the reorder endpoint, which takes the whole new ordering in one
- * request so a sequence is never left half-applied.
+ * The pair stacks below `xl`, timeline first: at 1024px the ordering is still the more important
+ * of the two, and a half-width map is not a map.
  */
 @Component({
   selector: 'vexto-route-stops-tab',
@@ -44,142 +36,116 @@ const STOP_TYPES: readonly RouteStopType[] = ['Pickup', 'DropOff', 'PickupAndDro
   imports: [
     CanDirective,
     ReactiveFormsModule,
+    RouteTimeline,
     VxEmptyState,
-    VxErrorState,
     VxField,
     VxFormSection,
     VxIcon,
+    VxMap,
     VxModal,
     VxSectionCard,
-    VxSkeleton,
-    VxStatusBadge,
   ],
   template: `
-    <vx-section-card
-      title="Stops"
-      description="The order passengers are collected and dropped off."
-      [padded]="false"
-    >
-      <button
-        *vxCan="manage"
-        header-actions
-        type="button"
-        class="vx-btn vx-btn-secondary vx-btn-sm"
-        (click)="add()"
+    <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <vx-section-card
+        title="Stop timeline"
+        description="The order passengers are collected and dropped off."
       >
-        <vx-icon name="plus" [size]="15" />
-        Add stop
-      </button>
+        <button
+          *vxCan="manage"
+          header-actions
+          type="button"
+          class="vx-btn vx-btn-secondary vx-btn-sm"
+          (click)="add()"
+        >
+          <vx-icon name="plus" [size]="15" />
+          Add stop
+        </button>
 
-      @if (loading()) {
-        <div class="flex flex-col gap-4 p-6">
-          @for (row of [0, 1, 2]; track row) {
-            <div class="flex items-center gap-4">
-              <vx-skeleton width="2.25rem" height="2.25rem" />
-              <vx-skeleton width="40%" height="1rem" />
+        @if (stops().length === 0) {
+          <vx-empty-state
+            icon="map-pin"
+            title="No pickup stops yet"
+            description="Add stops before activating this route — a route with nowhere to collect anybody would generate trips carrying an empty manifest."
+            actionLabel="Add stop"
+            (action)="add()"
+          />
+        } @else {
+          <vexto-route-timeline
+            [stops]="stops()"
+            [pickupCounts]="pickupCounts()"
+            [selectedStopId]="selectedStopId()"
+            [departureTime]="departureTime()"
+            [editable]="canManage()"
+            [busy]="reordering()"
+            (selected)="store.selectStop($event)"
+            (edited)="edit($event)"
+            (removed)="remove($event)"
+            (moved)="move($event.index, $event.delta)"
+          />
+        }
+      </vx-section-card>
+
+      <vx-section-card title="Route map" description="The stops, and the road between them.">
+        @if (preview(); as drawn) {
+          <dl class="mb-4 flex flex-wrap gap-x-8 gap-y-3">
+            <div>
+              <dt class="vx-section-label">Stops</dt>
+              <dd class="mt-1 text-body text-ink">{{ drawn.stops.length }}</dd>
             </div>
+            <div>
+              <dt class="vx-section-label">Distance</dt>
+              <dd class="mt-1 text-body text-ink">{{ distance() }}</dd>
+            </div>
+            <div>
+              <dt class="vx-section-label">Driving time</dt>
+              <dd class="mt-1 text-body text-ink">{{ duration() }}</dd>
+            </div>
+          </dl>
+
+          @if (drawn.stops.length === 0) {
+            <p class="text-body text-ink-muted">
+              This route has no active stops yet, so there is nothing to draw.
+            </p>
+          } @else {
+            <div class="h-[26rem] w-full">
+              <vx-map
+                [markers]="markers()"
+                [polyline]="drawn.polyline"
+                [fitToMarkers]="true"
+                (markerSelected)="store.selectStop($event)"
+              />
+            </div>
+
+            @if (selectedStop(); as stop) {
+              <p class="mt-3 text-meta text-ink-secondary" role="status">
+                Showing <span class="font-medium text-ink">{{ stop.name }}</span> —
+                {{ pickupCounts().get(stop.id) ?? 0 }} boarding here.
+              </p>
+            }
+
+            @if (!drawn.polyline) {
+              <p class="mt-3 text-meta text-ink-muted">
+                The stops are shown without a road path: either this route has a single stop, or no
+                map provider is configured for this environment.
+              </p>
+            }
           }
-        </div>
-      } @else if (error()) {
-        <vx-error-state title="We could not load stops" [message]="error()!" (retry)="load()" />
-      } @else if (stops().length === 0) {
-        <vx-empty-state
-          icon="map-pin"
-          title="No stops yet"
-          description="Add the pickup and drop-off points, in the order the vehicle visits them."
-          actionLabel="Add stop"
-          (action)="add()"
-        />
-      } @else {
-        <ol class="p-6">
-          @for (stop of stops(); track stop.id; let index = $index, last = $last) {
-            <li class="relative flex gap-4 pb-6 last:pb-0">
-              @if (!last) {
-                <span
-                  class="absolute left-[1.125rem] top-9 bottom-0 w-px"
-                  style="background: var(--vexto-border)"
-                  aria-hidden="true"
-                ></span>
-              }
-
-              <span
-                class="relative z-10 flex size-9 flex-none items-center justify-center rounded-full border text-meta font-semibold"
-                style="background: var(--vexto-surface); border-color: var(--vexto-primary-200); color: var(--vexto-primary-active)"
-              >
-                {{ sequenceLabel(index) }}
-              </span>
-
-              <div class="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <p class="font-medium text-ink">{{ stop.name }}</p>
-                  <p class="mt-0.5 text-meta text-ink-muted">
-                    {{ stop.address || 'No address recorded' }}
-                  </p>
-                  <div class="mt-2 flex flex-wrap items-center gap-2">
-                    <vx-status-badge tone="neutral" [label]="label(stop.stopType)" />
-                    @if (stop.estimatedArrivalOffsetMinutes !== null) {
-                      <vx-status-badge
-                        tone="info"
-                        icon="clock"
-                        [label]="'+' + stop.estimatedArrivalOffsetMinutes + ' min'"
-                      />
-                    }
-                  </div>
-                  @if (stop.instructions) {
-                    <p class="mt-2 max-w-prose text-meta text-ink-secondary">
-                      {{ stop.instructions }}
-                    </p>
-                  }
-                </div>
-
-                <div *vxCan="manage" class="flex flex-none items-center gap-1">
-                  <button
-                    type="button"
-                    class="vx-btn vx-btn-ghost vx-btn-sm vx-btn-icon"
-                    [attr.aria-label]="'Move ' + stop.name + ' earlier'"
-                    [disabled]="index === 0 || reordering()"
-                    (click)="move(index, -1)"
-                  >
-                    <vx-icon name="chevron-left" [size]="16" class="-rotate-90" />
-                  </button>
-                  <button
-                    type="button"
-                    class="vx-btn vx-btn-ghost vx-btn-sm vx-btn-icon"
-                    [attr.aria-label]="'Move ' + stop.name + ' later'"
-                    [disabled]="last || reordering()"
-                    (click)="move(index, 1)"
-                  >
-                    <vx-icon name="chevron-right" [size]="16" class="rotate-90" />
-                  </button>
-                  <button
-                    type="button"
-                    class="vx-btn vx-btn-ghost vx-btn-sm vx-btn-icon"
-                    [attr.aria-label]="'Edit ' + stop.name"
-                    (click)="edit(stop)"
-                  >
-                    <vx-icon name="edit" [size]="16" />
-                  </button>
-                  <button
-                    type="button"
-                    class="vx-btn vx-btn-ghost vx-btn-sm vx-btn-icon"
-                    [attr.aria-label]="'Remove ' + stop.name"
-                    (click)="remove(stop)"
-                  >
-                    <vx-icon name="trash" [size]="16" />
-                  </button>
-                </div>
-              </div>
-            </li>
-          }
-        </ol>
-      }
-    </vx-section-card>
+        } @else if (previewFailed()) {
+          <p class="text-body text-ink-muted">
+            We could not load the route map. The stop list beside it is unaffected.
+          </p>
+        } @else {
+          <div class="vx-skeleton h-[26rem] w-full rounded-2xl"></div>
+        }
+      </vx-section-card>
+    </div>
 
     <vx-modal
       [open]="formOpen()"
       [dismissable]="!saving()"
       [title]="editing() ? 'Edit stop' : 'Add stop'"
-      description="Coordinates are used to place the stop on the map and to follow the vehicle."
+      description="Coordinates place the stop on the map and are what the vehicle is followed against."
       (closed)="formOpen.set(false)"
     >
       <form [formGroup]="form" (ngSubmit)="save()" id="stop-form">
@@ -231,11 +197,7 @@ const STOP_TYPES: readonly RouteStopType[] = ['Pickup', 'DropOff', 'PickupAndDro
             </select>
           </vx-field>
 
-          <vx-field
-            label="Arrival offset"
-            for="s-offset"
-            help="Minutes after the trip starts."
-          >
+          <vx-field label="Arrival offset" for="s-offset" help="Minutes after the trip starts.">
             <input
               id="s-offset"
               type="number"
@@ -291,23 +253,81 @@ export class RouteStopsTab {
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
 
-  readonly routeId = input.required<string>();
-  /** Lets the detail header refresh its stop count without re-fetching the whole route. */
-  readonly changed = output<void>();
+  protected readonly store = inject(RouteWorkspaceStore);
 
   protected readonly manage = VextoPermissions.Routes.Manage;
   protected readonly stopTypes = STOP_TYPES;
   protected readonly label = humanizeEnum;
 
-  protected readonly stops = signal<RouteStop[]>([]);
-  protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
-  protected readonly reordering = signal(false);
+  protected readonly stops = this.store.stops;
+  protected readonly pickupCounts = this.store.pickupCounts;
+  protected readonly selectedStopId = this.store.selectedStopId;
+  protected readonly preview = this.store.preview;
+  protected readonly previewFailed = this.store.previewFailed;
 
+  protected readonly reordering = signal(false);
   protected readonly formOpen = signal(false);
   protected readonly editing = signal<RouteStop | null>(null);
   protected readonly saving = signal(false);
   protected readonly formError = signal<string | null>(null);
+
+  private readonly permissions = inject(PermissionService);
+
+  /** Asked once for the whole timeline rather than per row. */
+  protected readonly canManage = computed(() => this.permissions.has(VextoPermissions.Routes.Manage));
+
+  protected readonly departureTime = computed(
+    () => this.store.detail()?.route.defaultStartTime ?? null,
+  );
+
+  protected readonly selectedStop = computed(
+    () => this.stops().find((stop) => stop.id === this.selectedStopId()) ?? null,
+  );
+
+  /**
+   * The stops as pins.
+   *
+   * First and last are tinted differently so the direction of travel is readable without reading
+   * the numbers, and the chosen stop is tinted again so the map answers the timeline immediately.
+   */
+  protected readonly markers = computed<VxMapMarker[]>(() => {
+    const stops = this.preview()?.stops ?? [];
+    const selected = this.selectedStopId();
+
+    return stops.map((stop, index) => ({
+      id: stop.id,
+      lat: Number(stop.latitude),
+      lng: Number(stop.longitude),
+      label: `${stop.sequence}. ${stop.name}`,
+      tone:
+        stop.id === selected
+          ? 'warning'
+          : index === 0
+            ? 'success'
+            : index === stops.length - 1
+              ? 'danger'
+              : 'primary',
+      selected: stop.id === selected,
+    }));
+  });
+
+  protected readonly distance = computed(() => {
+    const metres = this.preview()?.distanceMeters;
+
+    return metres === null || metres === undefined ? '—' : `${(Number(metres) / 1000).toFixed(1)} km`;
+  });
+
+  protected readonly duration = computed(() => {
+    const seconds = this.preview()?.durationSeconds;
+
+    if (seconds === null || seconds === undefined) {
+      return '—';
+    }
+
+    const minutes = Math.round(Number(seconds) / 60);
+
+    return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+  });
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(150)]],
@@ -318,37 +338,6 @@ export class RouteStopsTab {
     stopType: ['Pickup', [Validators.required]],
     estimatedArrivalOffsetMinutes: [null as number | null],
   });
-
-  /** Position comes from array order, so numbering stays correct during an optimistic reorder. */
-  protected sequenceLabel(index: number): string {
-    return String(index + 1).padStart(2, '0');
-  }
-
-  constructor() {
-    effect(() => {
-      // Re-reads whenever the route changes, which is what makes this reusable across navigations.
-      this.routeId();
-      this.load();
-    });
-  }
-
-  protected load(): void {
-    this.loading.set(true);
-    this.error.set(null);
-
-    this.api.stops(this.routeId()).subscribe({
-      next: (stops) => {
-        this.stops.set([...stops].sort((a, b) => a.sequence - b.sequence));
-        this.loading.set(false);
-      },
-      error: (error: unknown) => {
-        this.loading.set(false);
-        this.error.set(
-          error instanceof VextoApiError ? error.message : 'We could not load the stops.',
-        );
-      },
-    });
-  }
 
   protected add(): void {
     this.editing.set(null);
@@ -370,12 +359,15 @@ export class RouteStopsTab {
     this.formError.set(null);
     this.form.reset({
       name: stop.name,
-      latitude: stop.latitude,
-      longitude: stop.longitude,
+      latitude: Number(stop.latitude),
+      longitude: Number(stop.longitude),
       address: stop.address ?? '',
       instructions: stop.instructions ?? '',
       stopType: stop.stopType,
-      estimatedArrivalOffsetMinutes: stop.estimatedArrivalOffsetMinutes,
+      estimatedArrivalOffsetMinutes:
+        stop.estimatedArrivalOffsetMinutes === null
+          ? null
+          : Number(stop.estimatedArrivalOffsetMinutes),
     });
     this.formOpen.set(true);
   }
@@ -392,6 +384,7 @@ export class RouteStopsTab {
 
     const value = this.form.getRawValue();
     const existing = this.editing();
+    const routeId = this.routeId();
 
     const body = {
       name: value.name,
@@ -407,17 +400,16 @@ export class RouteStopsTab {
     };
 
     const request = existing
-      ? this.api.updateStop(this.routeId(), existing.id, body)
+      ? this.api.updateStop(routeId, existing.id, body)
       : // A new stop goes to the end of the sequence; reordering is a separate, deliberate action.
-        this.api.addStop(this.routeId(), { ...body, sequence: this.stops().length + 1 });
+        this.api.addStop(routeId, { ...body, sequence: this.stops().length + 1 });
 
     request.subscribe({
       next: () => {
         this.saving.set(false);
         this.formOpen.set(false);
         this.toast.success(existing ? 'Stop updated.' : 'Stop added.');
-        this.load();
-        this.changed.emit();
+        this.afterChange();
       },
       error: (error: unknown) => {
         this.saving.set(false);
@@ -443,8 +435,7 @@ export class RouteStopsTab {
     this.api.removeStop(this.routeId(), stop.id).subscribe({
       next: () => {
         this.toast.success('Stop removed.');
-        this.load();
-        this.changed.emit();
+        this.afterChange();
       },
       error: () => this.toast.error('We could not remove this stop.'),
     });
@@ -471,7 +462,7 @@ export class RouteStopsTab {
     reordered[target] = moved;
 
     // Optimistic: the rail renumbers immediately, and a failure puts the old order back.
-    this.stops.set(reordered);
+    this.store.stops.set(reordered);
     this.reordering.set(true);
 
     this.api
@@ -482,13 +473,27 @@ export class RouteStopsTab {
       .subscribe({
         next: (stops) => {
           this.reordering.set(false);
-          this.stops.set([...stops].sort((a, b) => a.sequence - b.sequence));
+          this.store.setStops(stops);
+          // The drawn path follows the sequence, so a reorder makes the cached preview wrong.
+          this.store.refreshPreview();
         },
         error: () => {
           this.reordering.set(false);
-          this.stops.set(current);
+          this.store.stops.set(current);
           this.toast.error('We could not reorder the stops.');
         },
       });
   }
+
+  private routeId(): string {
+    return this.store.detail()?.route.id ?? '';
+  }
+
+  /** A stop change moves the map, the counts and the readiness gaps all at once. */
+  private afterChange(): void {
+    this.store.refreshStops();
+    this.store.refreshPreview();
+    this.store.refreshDetail();
+  }
 }
+

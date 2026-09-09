@@ -1089,12 +1089,36 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
-        /** Attaches a signed document to an agreement. */
-        post: {
+        /** Lists the files attached to an agreement. */
+        get: {
             parameters: {
                 query?: never;
+                header?: never;
+                path: {
+                    agreementId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AgreementDocumentResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Attaches a document to an agreement. */
+        post: {
+            parameters: {
+                query?: {
+                    type?: string;
+                };
                 header?: never;
                 path: {
                     agreementId: string;
@@ -1130,6 +1154,64 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agreements/{agreementId}/documents/{documentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Serves one attached document. The storage location is never exposed. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    agreementId: string;
+                    documentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Removes an attached document. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    agreementId: string;
+                    documentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -3701,6 +3783,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/trips/{tripId}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the trip's operational timeline, oldest event first. */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number | string;
+                };
+                header?: never;
+                path: {
+                    tripId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TripActivityResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/trips/{tripId}/attendance": {
         parameters: {
             query?: never;
@@ -4930,6 +5052,80 @@ export interface paths {
                 };
             };
         };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trips/{tripId}/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The trip's passenger manifest with photo availability and transport access state. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tripId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OperatorTripManifestResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/attention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The operational conditions that need somebody to do something today. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AttentionResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -6511,6 +6707,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             fileName: string;
+            type: string;
             contentType: string;
             /** Format: int64 */
             fileSize: number | string;
@@ -6533,6 +6730,8 @@ export interface components {
             signedDate: null | string;
             autoRenew: boolean;
             notes: null | string;
+            /** Format: int32 */
+            documentCount: null | number | string;
             /** Format: date-time */
             createdAtUtc: string;
             /** Format: date-time */
@@ -6573,6 +6772,16 @@ export interface components {
             status: null | components["schemas"]["SubscriptionStatus"];
             /** Format: date */
             startDate: null | string;
+        };
+        AttentionItemResponse: {
+            kind: string;
+            /** Format: int32 */
+            count: number | string;
+            message: string;
+            link: string;
+        };
+        AttentionResponse: {
+            items: components["schemas"]["AttentionItemResponse"][];
         };
         AuthenticatedUserResponse: {
             /** Format: uuid */
@@ -7040,6 +7249,27 @@ export interface components {
             /** Format: date-time */
             expiresAtUtc: null | string;
         };
+        OperatorManifestPassengerResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            passengerId: string;
+            name: string;
+            /** Format: uuid */
+            routeStopId: null | string;
+            stop: null | string;
+            /** Format: int32 */
+            sequence: null | number | string;
+            status: string;
+            accessState: string;
+            hasPhoto: boolean;
+            /** Format: date-time */
+            boardedAtUtc: null | string;
+            /** Format: date-time */
+            noShowAtUtc: null | string;
+            /** Format: date-time */
+            droppedOffAtUtc: null | string;
+        };
         OperatorPassengerAccessRequest: {
             passengerIds: string[];
         };
@@ -7055,6 +7285,10 @@ export interface components {
             earliestDueDate: null | string;
             /** Format: date */
             gracePeriodEndsOn: null | string;
+        };
+        OperatorTripManifestResponse: {
+            trip: components["schemas"]["TripResponse"];
+            passengers: components["schemas"]["OperatorManifestPassengerResponse"][];
         };
         PagedResultOfAgreementResponse: {
             items: components["schemas"]["AgreementResponse"][];
@@ -7376,6 +7610,8 @@ export interface components {
         PassengerTripResponse: {
             /** Format: uuid */
             tripId: string;
+            /** Format: uuid */
+            routeId: string;
             routeCode: string;
             routeName: string;
             /** Format: date */
@@ -7385,6 +7621,8 @@ export interface components {
             tripStatus: string;
             stopName: null | string;
             myStatus: string;
+            driverName: null | string;
+            vehiclePlateNumber: null | string;
         };
         PassengerUserAccountResponse: {
             /** Format: uuid */
@@ -7699,6 +7937,11 @@ export interface components {
             /** Format: int32 */
             memberCount: number | string;
         };
+        TenantHealthIndicatorResponse: {
+            code: string;
+            severity: string;
+            message: string;
+        };
         TenantPaymentSettingsResponse: {
             platformFeeType: components["schemas"]["PlatformFeeType"];
             /** Format: double */
@@ -7729,6 +7972,7 @@ export interface components {
             businessDetails: components["schemas"]["TenantBusinessDetailsPayload"];
             hasLogo: boolean;
             status: string;
+            health: components["schemas"]["TenantHealthIndicatorResponse"][];
             /** Format: date-time */
             createdAtUtc: string;
         };
@@ -7765,6 +8009,25 @@ export interface components {
         };
         TerminateAgreementRequest: {
             reason: null | string;
+        };
+        TripActivityActorResponse: {
+            displayName: string;
+        };
+        TripActivityEventResponse: {
+            /** Format: uuid */
+            id: string;
+            type: string;
+            /** Format: date-time */
+            occurredAtUtc: string;
+            actor: null | components["schemas"]["TripActivityActorResponse"];
+            summary: string;
+            detail: null | string;
+        };
+        TripActivityResponse: {
+            /** Format: uuid */
+            tripId: string;
+            items: components["schemas"]["TripActivityEventResponse"][];
+            hasMore: boolean;
         };
         TripAttendanceCountsResponse: {
             /** Format: int32 */

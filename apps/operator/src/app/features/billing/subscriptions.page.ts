@@ -3,7 +3,6 @@ import { PassengerBillingApi, PassengersApi, RoutesApi, VextoApiError } from '@v
 import type {
   PassengerSubscription,
   PassengerSubscriptionStatus,
-  PickerOption,
 } from '@vexto/models';
 import { PermissionService, VextoPermissions } from '@vexto/permissions';
 import {
@@ -13,6 +12,8 @@ import {
   VxErrorState,
   VxFilterBar,
   VxModal,
+  VxPicker,
+  type VxPickerOption,
   VxPageHeader,
   VxRowAction,
   VxRowActions,
@@ -20,7 +21,7 @@ import {
   VxStatusBadge,
   VxTableShell,
 } from '@vexto/ui';
-import { formatMoney } from '@vexto/utilities';
+import { formatMoney, serviceDate } from '@vexto/utilities';
 import { PagedList } from '../../shared/paged-list';
 
 interface SubscriptionFilters extends Record<string, unknown> {
@@ -42,6 +43,7 @@ interface SubscriptionFilters extends Record<string, unknown> {
     VxErrorState,
     VxFilterBar,
     VxModal,
+    VxPicker,
     VxPageHeader,
     VxRowAction,
     VxRowActions,
@@ -178,39 +180,50 @@ interface SubscriptionFilters extends Record<string, unknown> {
     @if (creating()) {
       <vx-modal title="New passenger subscription" [open]="true" (closed)="creating.set(false)">
         <form (submit)="create($event)">
-          <label class="block">
-            <span class="vx-section-label">Passenger</span>
-            <select
-              id="sub-passenger"
-              class="vx-select mt-1 w-full"
-              [value]="passengerId()"
-              (change)="passengerId.set(value($event))"
-            >
-              <option value="">Choose a passenger</option>
-              @for (option of passengers(); track option.id) {
-                <option [value]="option.id">{{ option.label }}</option>
-              }
-            </select>
-          </label>
+          <!--
+            A searchable picker rather than a dropdown of the first twenty. The picker endpoint has
+            always searched on the server; the form used to render page one and stop, so on a tenant
+            with more passengers than the cap most of them simply could not be chosen — and nothing
+            on screen said the list had ended. See VxPicker.
+          -->
+          <div class="block">
+            <label class="vx-section-label" for="sub-passenger">Passenger</label>
+            <vx-picker
+              class="mt-1"
+              inputId="sub-passenger"
+              placeholder="Search by name or mobile"
+              emptyLabel="No active passengers yet."
+              [search]="searchPassengers"
+              [selected]="passenger()"
+              (chosen)="onPassengerChosen($event)"
+            />
+          </div>
 
-          <label class="mt-4 block">
-            <span class="vx-section-label">Route</span>
-            <select
-              id="sub-route"
-              class="vx-select mt-1 w-full"
-              [value]="routeId()"
-              (change)="routeId.set(value($event))"
-            >
-              <option value="">Any route</option>
-              @for (option of routes(); track option.id) {
-                <option [value]="option.id">{{ option.label }}</option>
-              }
-            </select>
+          <div class="mt-4 block">
+            <label class="vx-section-label" for="sub-route">Route</label>
+            <vx-picker
+              class="mt-1"
+              inputId="sub-route"
+              placeholder="Any route — search by code or name"
+              emptyLabel="No active routes yet."
+              [search]="searchRoutes"
+              [selected]="route()"
+              (chosen)="onRouteChosen($event)"
+            />
+            @if (route()) {
+              <button
+                type="button"
+                class="vx-btn vx-btn-ghost vx-btn-sm mt-1.5"
+                (click)="onRouteChosen(null)"
+              >
+                Clear — price all their travel together
+              </button>
+            }
             <span class="mt-1.5 block text-meta text-ink-muted">
               Leave as "any route" for one fee covering all their travel. Choose a route to price
               that route separately — a passenger can have one of each.
             </span>
-          </label>
+          </div>
 
           <label class="mt-4 block">
             <span class="vx-section-label">Description</span>
@@ -361,11 +374,24 @@ export class PassengerSubscriptionsPage {
   protected readonly creating = signal(false);
   protected readonly invoicing = signal<PassengerSubscription | null>(null);
   protected readonly busy = signal(false);
-  protected readonly passengers = signal<PickerOption[]>([]);
-  protected readonly routes = signal<PickerOption[]>([]);
+  /** The chosen records, kept whole so the picker can show a label rather than an id. */
+  protected readonly passenger = signal<VxPickerOption | null>(null);
+  protected readonly route = signal<VxPickerOption | null>(null);
 
-  protected readonly passengerId = signal('');
-  protected readonly routeId = signal('');
+  protected readonly passengerId = computed(() => this.passenger()?.id ?? '');
+  protected readonly routeId = computed(() => this.route()?.id ?? '');
+
+  /**
+   * How each picker asks the server.
+   *
+   * Bound as fields rather than methods so the reference is stable — an arrow function rebuilt on
+   * every change detection would restart the picker's search pipeline underneath the user.
+   */
+  protected readonly searchPassengers = (term: string) =>
+    this.passengersApi.picker({ search: term || undefined });
+
+  protected readonly searchRoutes = (term: string) =>
+    this.routesApi.picker({ search: term || undefined });
   protected readonly description = signal('Monthly transport');
   protected readonly amount = signal('');
   protected readonly taxRate = signal('0');
@@ -395,18 +421,17 @@ export class PassengerSubscriptionsPage {
 
   protected openCreate(): void {
     this.creating.set(true);
+    this.passenger.set(null);
+    this.route.set(null);
+  }
 
-    // A picker rather than the full passenger list: three fields per row, capped at 50, which is
-    // what pickers exist for.
-    this.passengersApi.picker().subscribe({
-      next: (options) => this.passengers.set(options),
-      error: () => this.passengers.set([]),
-    });
+  protected onPassengerChosen(option: VxPickerOption | null): void {
+    this.passenger.set(option);
+  }
 
-    this.routesApi.picker().subscribe({
-      next: (options) => this.routes.set(options),
-      error: () => this.routes.set([]),
-    });
+  /** Null is a real choice here: no route means one fee covering all of their travel. */
+  protected onRouteChosen(option: VxPickerOption | null): void {
+    this.route.set(option);
   }
 
   protected create(event: Event): void {
@@ -537,7 +562,7 @@ export class PassengerSubscriptionsPage {
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return serviceDate();
 }
 
 function firstOfThisMonth(): string {

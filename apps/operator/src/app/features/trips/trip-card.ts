@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import type { TripResponse } from '@vexto/models';
 import {
+  VxAttentionNote,
   VxAvatar,
   type VxCardAction,
   VxCardFact,
@@ -11,6 +12,7 @@ import {
   VxStatusBadge,
 } from '@vexto/ui';
 import { formatTime } from '@vexto/utilities';
+import { tripAttention } from './trip-attention';
 
 /** How the bus on this trip is reporting. Resolved by the board, which holds the fleet feed. */
 export type TripTracking = 'live' | 'stale' | 'offline' | null;
@@ -30,6 +32,7 @@ export type TripTracking = 'live' | 'stale' | 'offline' | null;
   selector: 'vexto-trip-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    VxAttentionNote,
     VxAvatar,
     VxCardFact,
     VxEntityCard,
@@ -95,6 +98,15 @@ export type TripTracking = 'live' | 'stale' | 'offline' | null;
         </p>
       }
 
+      <!--
+        What needs looking at, from facts the trip itself carries. Notably not "delayed": Vexto
+        records no expected arrival, so a card claiming one would be an opinion a dispatcher would
+        ring a driver about. See trip-attention.ts.
+      -->
+      @for (note of attention(); track note.id) {
+        <vx-attention-note class="mt-3" [level]="note.level">{{ note.message }}</vx-attention-note>
+      }
+
       @if (showProgress()) {
         <div class="mt-4">
           <vx-progress-bar
@@ -122,6 +134,8 @@ export class TripCard {
   readonly action = output<string>();
 
   protected readonly running = computed(() => this.trip().status === 'Started');
+
+  protected readonly attention = computed(() => tripAttention(this.trip(), this.tracking()));
 
   private readonly time = computed(() => formatTime(this.trip().scheduledStartAtUtc));
 

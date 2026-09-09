@@ -9,6 +9,7 @@ import { bootstrapApplication } from '@angular/platform-browser';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { AUTH_STORAGE_KEY, authInterceptor } from '@vexto/auth';
+import { VX_NOTIFICATION_LINKS } from '@vexto/layouts';
 import { PhotoSource } from '@vexto/api-client';
 import { VX_PHOTO_RESOLVER } from '@vexto/ui';
 import { VEXTO_CONFIG, loadRuntimeConfig } from '@vexto/utilities';
@@ -26,6 +27,15 @@ async function bootstrap(): Promise<void> {
       provideHttpClient(withInterceptors([authInterceptor])),
       { provide: VEXTO_CONFIG, useValue: config },
       { provide: AUTH_STORAGE_KEY, useValue: 'vexto.driver.session' },
+
+      // A driver app has trips and nothing else. An invoice notification would have nowhere to go,
+      // so it resolves to null and the row stays readable but unclickable rather than bouncing off
+      // the wildcard route into the trip list. See VX_NOTIFICATION_LINKS.
+      {
+        provide: VX_NOTIFICATION_LINKS,
+        useValue: (target: 'trip' | 'invoice', id: string) =>
+          target === 'trip' ? `/trips/${id}` : null,
+      },
 
       // Lets <vx-avatar> fetch an authorized photo without @vexto/ui depending on the API client.
       // See VX_PHOTO_RESOLVER.

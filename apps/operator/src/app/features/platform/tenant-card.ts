@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import type { TenantResponse } from '@vexto/models';
+import type { TenantHealthIndicator, TenantResponse } from '@vexto/models';
 import {
+  VxAttentionNote,
   type VxCardAction,
   VxCardFact,
   VxEntityCard,
@@ -22,7 +23,7 @@ import {
 @Component({
   selector: 'vexto-tenant-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [VxCardFact, VxEntityCard, VxIcon, VxStatusBadge],
+  imports: [VxAttentionNote, VxCardFact, VxEntityCard, VxIcon, VxStatusBadge],
   template: `
     <vx-entity-card
       [title]="tenant().name"
@@ -54,6 +55,17 @@ import {
         <vx-icon name="mail" [size]="14" />
         <span class="truncate">{{ tenant().email }}</span>
       </p>
+
+      <!--
+        Health, as named conditions rather than as a score. A number out of ten cannot be argued
+        with and cannot be acted on; "trade licence expired on 3 March" names the thing and names
+        the fix. The server decides these, so every platform screen says the same thing.
+      -->
+      @for (indicator of health(); track indicator.code) {
+        <vx-attention-note class="mt-2" [level]="level(indicator)">
+          {{ indicator.message }}
+        </vx-attention-note>
+      }
     </vx-entity-card>
   `,
 })
@@ -62,6 +74,20 @@ export class TenantCard {
   readonly selected = input(false);
   readonly opened = output<void>();
   readonly action = output<string>();
+
+  /**
+   * Nothing when the operator is fine, which is most of them. A card that listed green ticks for
+   * conditions that are not happening would make the one card that matters no louder than the rest.
+   */
+  protected readonly health = computed(() => this.tenant().health ?? []);
+
+  protected level(indicator: TenantHealthIndicator): 'critical' | 'warning' | 'info' {
+    return indicator.severity === 'Critical'
+      ? 'critical'
+      : indicator.severity === 'Warning'
+        ? 'warning'
+        : 'info';
+  }
 
   protected readonly monogram = computed(() =>
     this.tenant()

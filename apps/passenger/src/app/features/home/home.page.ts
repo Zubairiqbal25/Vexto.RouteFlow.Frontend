@@ -20,22 +20,18 @@ import type {
 } from '@vexto/models';
 import { TrackingHub } from '@vexto/signalr';
 import { PassengerAccessCard } from '../billing/access-card';
+import { CrewSheet } from './crew-sheet';
+import { SkipSheet } from './skip-sheet';
 import {
   ToastService,
+  VxAvatar,
   VxEmptyState,
   VxErrorState,
   VxIcon,
   VxSkeleton,
   VxStatusBadge,
 } from '@vexto/ui';
-import {
-  VEXTO_CONFIG,
-  formatDate,
-  formatMoney,
-  formatRelative,
-  formatTime,
-  secondsSince,
-} from '@vexto/utilities';
+import { VEXTO_CONFIG, formatDate, formatDayLabel, formatMoney, formatRelative, formatTime, minutesUntil, secondsSince, serviceDate } from '@vexto/utilities';
 
 /**
  * Whether a trip is over as far as the passenger is concerned.
@@ -44,6 +40,23 @@ import {
  */
 function hasFinished(trip: PassengerTrip): boolean {
   return trip.tripStatus === 'Completed' || trip.tripStatus === 'Cancelled';
+}
+
+/**
+ * How relevant a trip is to a passenger right now, lowest first.
+ *
+ * **A bus that is actually moving outranks one scheduled earlier.** Ordering by departure alone
+ * looks right and is wrong in the one case that matters: a passenger assigned to a 06:00 that never
+ * ran and an 06:30 they are currently sitting on is shown the 06:00, with a dead tracking panel,
+ * while the bus they are on is two screens away. Finished trips sort last for the same reason — at
+ * lunchtime, this morning's completed journey is not "next".
+ */
+function relevance(trip: PassengerTrip): number {
+  if (trip.tripStatus === 'Started') {
+    return 0;
+  }
+
+  return hasFinished(trip) ? 2 : 1;
 }
 
 /**
@@ -60,7 +73,10 @@ function hasFinished(trip: PassengerTrip): boolean {
   selector: 'vexto-passenger-home-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    CrewSheet,
     PassengerAccessCard,
+    SkipSheet,
+    VxAvatar,
     VxEmptyState,
     VxErrorState,
     VxIcon,
@@ -105,6 +121,38 @@ function hasFinished(trip: PassengerTrip): boolean {
               </div>
             </dl>
 
+            <!--
+              What is happening right now, in one sentence.
+
+              Each branch is a real state the server told us about, never a guess: a scheduled trip
+              counts down to its departure, a started one says the bus is moving, and an estimate is
+              only ever quoted when the ETA endpoint returned one. See the ETA block below for why
+              an unavailable estimate says so out loud rather than falling silent.
+            -->
+            <p class="mt-5 text-body font-semibold text-ink" role="status">{{ countdown(trip) }}</p>
+
+            <!--
+              Which bus, and who is driving. Tapping opens a sheet with the same two facts and
+              nothing more — see CrewSheet for why there is no way to contact the driver from here.
+            -->
+            <button
+              type="button"
+              class="mt-4 flex w-full items-center gap-3 rounded-xl border border-line-subtle px-4 py-3 text-start"
+              style="background: var(--vexto-surface-muted)"
+              (click)="crewOpen.set(true)"
+            >
+              <vx-avatar size="md" [name]="trip.driverName ?? 'Driver'" />
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-body font-medium text-ink">
+                  {{ trip.driverName ?? 'Driver not assigned yet' }}
+                </span>
+                <span class="block truncate text-meta text-ink-muted">
+                  {{ trip.vehiclePlateNumber ?? 'Vehicle not assigned yet' }}
+                </span>
+              </span>
+              <vx-icon name="chevron-right" [size]="18" class="text-ink-muted" />
+            </button>
+
             @if (eta(); as estimate) {
               @if (estimate.status === 'Available') {
                 <div
@@ -123,10 +171,11 @@ function hasFinished(trip: PassengerTrip): boolean {
                   </div>
                 </div>
               } @else if (estimate.status === 'TrackingUnavailable') {
-                <p class="mt-5 text-meta text-ink-muted">
-                  We cannot see your bus at the moment, so there is no arrival estimate. It will
-                  appear as soon as it reports again.
-                </p>
+                <!--
+                  Deliberately silent. The countdown line above has already said the bus is not
+                  reporting; saying it again here, and a third time under the map, filled a phone
+                  screen with three sentences of the same news.
+                -->
               } @else if (estimate.status === 'NotAwaited') {
                 <p class="mt-5 text-meta text-ink-muted">
                   You are on board, so there is no arrival estimate to show.
@@ -176,15 +225,16 @@ function hasFinished(trip: PassengerTrip): boolean {
               position on a trip already under way means the bus is out there and its device is not
               reporting — which is what the passenger standing at the stop needs to know.
             -->
-            <p class="border-t border-line-subtle px-5 py-4 text-body text-ink-muted">
-              @if (trip.tripStatus === 'Started') {
-                Your bus is on the road, but it is not reporting its position at the moment.
-                Tracking appears here as soon as it does.
-              } @else {
-                Your bus has not started this trip yet. Tracking appears here once it is on the
-                road.
-              }
-            </p>
+            @if (trip.tripStatus !== 'Started') {
+              <!--
+                Only the case the countdown does not already cover. A bus that has set off and gone
+                quiet is reported once, at the top; a bus that has not left yet is a different fact
+                and belongs here, where the map would otherwise be.
+              -->
+              <p class="border-t border-line-subtle px-5 py-4 text-body text-ink-muted">
+                Your bus has not started this trip yet. Tracking appears here once it is on the road.
+              </p>
+            }
           }
         </section>
 
@@ -227,13 +277,29 @@ function hasFinished(trip: PassengerTrip): boolean {
             <button
               type="button"
               class="vx-btn vx-btn-secondary vx-btn-touch mt-4 w-full"
-              [disabled]="skipping()"
-              (click)="skipTomorrow()"
+              (click)="skipOpen.set(true)"
             >
-              {{ skipping() ? 'Saving…' : 'Skip Tomorrow' }}
+              Skip Tomorrow
             </button>
           </div>
         </div>
+
+        <vexto-crew-sheet
+          [open]="crewOpen()"
+          [driverName]="trip.driverName"
+          [plateNumber]="trip.vehiclePlateNumber"
+          [routeName]="trip.routeName"
+          [stopName]="trip.stopName"
+          (closed)="crewOpen.set(false)"
+        />
+
+        <vexto-skip-sheet
+          [open]="skipOpen()"
+          [trips]="tomorrowsTrips()"
+          [serviceDate]="tomorrow()"
+          (closed)="skipOpen.set(false)"
+          (declared)="onAbsenceDeclared()"
+        />
       } @else {
         <vx-empty-state
           icon="trips"
@@ -259,8 +325,18 @@ export class PassengerHomePage {
 
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
-  protected readonly skipping = signal(false);
+  protected readonly crewOpen = signal(false);
+  protected readonly skipOpen = signal(false);
   protected readonly nextTrip = signal<PassengerTrip | null>(null);
+
+  /** Every upcoming trip, kept so the absence sheet can offer a choice without a second request. */
+  private readonly upcoming = signal<PassengerTrip[]>([]);
+
+  protected readonly tomorrowsTrips = computed(() => {
+    const date = this.tomorrow();
+
+    return this.upcoming().filter((trip) => trip.serviceDate === date && !hasFinished(trip));
+  });
 
   /**
    * The soonest unpaid invoice, or null.
@@ -374,6 +450,66 @@ export class PassengerHomePage {
     this.destroyRef.onDestroy(() => void this.hub.stop());
   }
 
+  /** Tomorrow as an ISO date. The absence API works in service dates, not timestamps. */
+  protected tomorrow(): string {
+    return serviceDate(1);
+  }
+
+  /**
+   * The one line that says what is happening now.
+   *
+   * **Never an invented arrival time.** A countdown to a *scheduled* departure is a plan and is
+   * phrased as one; an estimate is only quoted when the server produced one from a fresh position.
+   * A bus that has started but stopped reporting says exactly that, because a passenger standing at
+   * a stop needs to know the difference between "three minutes away" and "we have lost sight of it".
+   */
+  protected countdown(trip: PassengerTrip): string {
+    if (trip.tripStatus === 'Completed') {
+      return 'This trip has finished.';
+    }
+
+    if (trip.tripStatus === 'Cancelled') {
+      return 'This trip was cancelled by your operator.';
+    }
+
+    const estimate = this.eta();
+
+    if (estimate?.status === 'Available' && estimate.minutesAway !== null) {
+      const minutes = Number(estimate.minutesAway);
+
+      return minutes <= 1
+        ? 'Your bus is arriving now.'
+        : `Your bus is about ${minutes} minutes away.`;
+    }
+
+    if (trip.tripStatus === 'Started') {
+      return this.isLive()
+        ? 'Your bus is on the way.'
+        : 'Your bus is on the way. Live location is temporarily unavailable.';
+    }
+
+    const minutes = minutesUntil(trip.scheduledStartAtUtc);
+
+    if (!Number.isFinite(minutes)) {
+      return `Scheduled for ${formatTime(trip.scheduledStartAtUtc)}.`;
+    }
+
+    if (minutes <= 0) {
+      return 'Due to depart now.';
+    }
+
+    if (minutes < 60) {
+      return `Starts in ${minutes} min.`;
+    }
+
+    return `${formatDayLabel(trip.scheduledStartAtUtc)} at ${formatTime(trip.scheduledStartAtUtc)}.`;
+  }
+
+  protected onAbsenceDeclared(): void {
+    this.skipOpen.set(false);
+    this.load();
+  }
+
   protected greeting(): string {
     const hour = new Date().getHours();
     const period = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -385,7 +521,7 @@ export class PassengerHomePage {
     this.loading.set(true);
     this.error.set(null);
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = serviceDate();
 
     // The authoritative billing state, alongside where their bus is.
     //
@@ -401,19 +537,24 @@ export class PassengerHomePage {
       error: () => this.access.set(null),
     });
 
-    this.api.myTrips({ fromDate: today, pageSize: 5 }).subscribe({
+    // Twenty-five rather than five. The window starts today and has no end, so five rows cover
+    // barely two days for somebody with a morning and an evening service — and the “which trip is
+    // next” decision below is then made over a truncated list, which is how a bus that is actually
+    // running ends up ranked behind one that is not in the page at all. The rows are thin and the
+    // read is bounded either way.
+    this.api.myTrips({ fromDate: today, pageSize: 25 }).subscribe({
       next: (result) => {
-        // Trips that have not finished first, then by departure. Sorting on departure alone
-        // means a passenger who checks the app at lunchtime is shown this morning's completed
-        // journey as their "next trip" — with a dead tracking panel — instead of the bus home.
+        // Running first, then not-yet-run, then finished — and departure time only inside each
+        // band. See `relevance`.
         const [next] = [...result.items].sort((a, b) => {
-          const finished = Number(hasFinished(a)) - Number(hasFinished(b));
+          const byRelevance = relevance(a) - relevance(b);
 
-          return finished !== 0
-            ? finished
+          return byRelevance !== 0
+            ? byRelevance
             : a.scheduledStartAtUtc.localeCompare(b.scheduledStartAtUtc);
         });
 
+        this.upcoming.set(result.items);
         this.nextTrip.set(next ?? null);
         this.loading.set(false);
 
@@ -479,33 +620,4 @@ export class PassengerHomePage {
     });
   }
 
-  protected skipTomorrow(): void {
-    this.skipping.set(true);
-
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    this.api
-      .declareAbsence({
-        serviceDate: tomorrow.toISOString().slice(0, 10),
-        routeId: null,
-        reason: null,
-      })
-      .subscribe({
-        next: (result) => {
-          this.skipping.set(false);
-          this.toast.success(
-            result.tripsAffected > 0
-              ? `Noted. ${result.tripsAffected} trip${result.tripsAffected === 1 ? '' : 's'} updated.`
-              : 'Noted. You are marked as not travelling tomorrow.',
-          );
-        },
-        error: (error: unknown) => {
-          this.skipping.set(false);
-          this.toast.error(
-            error instanceof VextoApiError ? error.message : 'We could not save that.',
-          );
-        },
-      });
-  }
 }

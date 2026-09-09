@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService, AuthStore } from '@vexto/auth';
-import { VxConfirmHost, VxIcon, VxThemeToggle, VxToastHost } from '@vexto/ui';
+import { VxConfirmHost, VxIcon, VxLogo, VxThemeToggle, VxToastHost } from '@vexto/ui';
 import type { NavItem } from './navigation';
 import { VxNotificationBell } from './vx-notification-bell';
 
@@ -22,6 +22,7 @@ import { VxNotificationBell } from './vx-notification-bell';
     RouterLink,
     RouterLinkActive,
     VxIcon,
+    VxLogo,
     VxNotificationBell,
     VxThemeToggle,
     VxToastHost,
@@ -33,11 +34,12 @@ import { VxNotificationBell } from './vx-notification-bell';
         class="sticky top-0 z-30 flex flex-none items-center gap-3 px-4 py-3.5 text-white"
         style="background: var(--vexto-nav-bg)"
       >
-        <span
-          class="flex size-9 flex-none items-center justify-center rounded-xl text-sm font-bold"
-          style="background: linear-gradient(135deg, var(--vexto-primary) 0%, var(--vexto-primary-active) 100%)"
-          >V</span
-        >
+        <!--
+          The mark alone, not the lockup. The line beside it is already the screen's title, and a
+          driver running a trip on a tablet should not lose a centimetre of header to a wordmark
+          that repeats the app they have open.
+        -->
+        <vx-logo class="flex-none" variant="mark" tone="on-dark" [height]="20" label="Vexto" />
         <div class="min-w-0 flex-1">
           <p class="truncate text-[0.9375rem] font-semibold leading-tight">{{ title() }}</p>
           <p class="truncate text-meta" style="color: var(--vexto-nav-text)">{{ subtitle() }}</p>

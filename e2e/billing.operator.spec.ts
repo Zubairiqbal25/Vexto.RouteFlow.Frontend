@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
   accounts,
+  chooseFromPicker,
   demoPassengerName,
   invoicePeriod,
   routeCode,
@@ -46,6 +47,33 @@ test('has a payment account that can take payments', async ({ page }) => {
   await expect(page.locator('dd').filter({ hasText: 'Yes' }).first()).toBeVisible();
 });
 
+/**
+ * Turning online payments on, which is a separate and deliberate decision from connecting.
+ *
+ * **Connecting an account must not by itself start asking people for money** — so the setting is
+ * off by default, and a passenger's Pay button does not appear until an operator says so. The
+ * passenger half of this journey pays a real invoice, and without this step the API correctly
+ * refuses with "This operator has not turned on online payments", which is the rule working.
+ *
+ * Idempotent: the button reads "Turn off" once it is already on, and this leaves it alone.
+ */
+test('turns on online payments so passengers can settle their own invoices', async ({ page }) => {
+  await page.goto('/billing/account');
+
+  const section = page.locator('section', { has: page.getByText('Online payments') });
+  await expect(section).toBeVisible();
+
+  const turnOn = section.getByRole('button', { name: 'Turn on' });
+
+  if (await turnOn.count()) {
+    await turnOn.click();
+  }
+
+  // The state, not the toast: a toast is transient by design and the passenger journey depends on
+  // what it announced rather than on the announcement.
+  await expect(section.getByRole('button', { name: 'Turn off' })).toBeVisible();
+});
+
 test('creates a transport subscription for the passenger', async ({ page }) => {
   await page.goto('/billing/subscriptions');
 
@@ -54,10 +82,11 @@ test('creates a transport subscription for the passenger', async ({ page }) => {
   // The seeded passenger, because they are the one with a login — the passenger app signs in as
   // them a few tests later and has to find this invoice.
   //
-  // Matched by text and selected by value: the option label carries the mobile number too, so an
-  // exact label match would not find it.
-  const option = page.locator('#sub-passenger option', { hasText: demoPassengerName });
-  await page.locator('#sub-passenger').selectOption((await option.getAttribute('value')) ?? '');
+  // Typed rather than picked from a list. Both of these are searchable pickers now, and that is not
+  // cosmetic: the endpoints return at most twenty rows, so on a database with fifty routes in it
+  // this run's own route is not in the first page at all. Typing is the only way to reach it — and
+  // is what a real operator does.
+  await chooseFromPicker(page, 'sub-passenger', demoPassengerName);
 
   // Route-specific, and deliberately so. The demo seed already gives this passenger a general
   // arrangement covering all their travel, and the domain refuses a second one for the same route
@@ -67,8 +96,7 @@ test('creates a transport subscription for the passenger', async ({ page }) => {
   // This run's own route, not simply the first in the list: a re-run against the same database
   // would otherwise pick the route it used last time and be refused as a duplicate, which is the
   // rule working rather than failing.
-  const routeOption = page.locator('#sub-route option', { hasText: routeCode });
-  await page.locator('#sub-route').selectOption((await routeOption.getAttribute('value')) ?? '');
+  await chooseFromPicker(page, 'sub-route', routeCode);
 
   await page.locator('#sub-description').fill(subscriptionDescription);
   await page.locator('#sub-amount').fill('420');

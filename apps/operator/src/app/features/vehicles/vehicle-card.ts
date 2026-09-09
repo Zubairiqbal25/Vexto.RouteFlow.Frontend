@@ -44,11 +44,17 @@ import { formatTime } from '@vexto/utilities';
         <vx-icon name="vehicle" [size]="24" />
       </span>
 
+      <!--
+        One badge, not two. A bus that is out on a trip is self-evidently active, and showing both
+        squeezed the plate — the thing an operator identifies the vehicle by — down to "Dubai…".
+        "On trip" is the more operational of the two answers, so it wins when both are true.
+      -->
       <span status class="flex items-center gap-1.5">
         @if (onTrip()) {
           <vx-status-badge tone="success" label="On trip" />
+        } @else {
+          <vx-status-badge [status]="vehicle().status" />
         }
-        <vx-status-badge [status]="vehicle().status" />
       </span>
 
       <div class="mt-4 grid grid-cols-2 gap-3">

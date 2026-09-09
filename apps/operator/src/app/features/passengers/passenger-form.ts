@@ -12,6 +12,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PassengersApi, VextoApiError } from '@vexto/api-client';
 import type { PassengerResponse } from '@vexto/models';
 import { ToastService, VxField, VxFormSection, VxModal } from '@vexto/ui';
+import { unsavedChangesGuard } from '../../shared/unsaved-changes';
 import { InvitePanel, type InvitationGateway } from '../../shared/invite-panel';
 
 /**
@@ -33,7 +34,7 @@ import { InvitePanel, type InvitationGateway } from '../../shared/invite-panel';
       [description]="
         passenger() ? 'Update these details.' : 'Register someone for transport access.'
       "
-      (closed)="dismissed.emit()"
+      (closed)="tryDismiss()"
     >
       <form [formGroup]="form" (ngSubmit)="submit()" id="passenger-form">
         @if (formError(); as message) {
@@ -114,7 +115,7 @@ import { InvitePanel, type InvitationGateway } from '../../shared/invite-panel';
         </div>
       }
 
-      <button type="button" footer class="vx-btn vx-btn-secondary" [disabled]="busy()" (click)="dismissed.emit()">
+      <button type="button" footer class="vx-btn vx-btn-secondary" [disabled]="busy()" (click)="tryDismiss()">
         Cancel
       </button>
       <button type="submit" footer form="passenger-form"
@@ -135,6 +136,20 @@ export class PassengerForm {
   /** Null creates; a passenger edits. */
   readonly passenger = input<PassengerResponse | null>(null);
   readonly dismissed = output<void>();
+
+  private readonly confirmDiscard = unsavedChangesGuard();
+
+  /**
+   * Closes the form, asking first when there is unsaved work in it.
+   *
+   * Every way out of this form routes through here — the close button, the backdrop and Escape all
+   * raise the same event — so there is no path that quietly discards what somebody typed.
+   */
+  protected async tryDismiss(): Promise<void> {
+    if (await this.confirmDiscard(this.form)) {
+      this.dismissed.emit();
+    }
+  }
   readonly saved = output<PassengerResponse>();
 
   protected readonly busy = signal(false);

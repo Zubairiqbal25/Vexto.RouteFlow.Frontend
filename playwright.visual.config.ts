@@ -10,8 +10,12 @@ import { defineConfig } from '@playwright/test';
  *
  *   npx playwright test --config playwright.visual.config.ts
  *
- * Needs the three dev servers and an API with demo data. Credentials come from the same environment
- * variables as the pilot journey; no password is written down here.
+ * It starts the three dev servers itself, reusing any that are already up, so `npm run e2e:visual`
+ * is the whole command once the API is running. It used to assume they were there and failed with
+ * ERR_CONNECTION_REFUSED — an error that reads like a broken app rather than a missing prerequisite.
+ *
+ * Needs an API with demo data. Credentials come from the same environment variables as the pilot
+ * journey; no password is written down here.
  */
 export default defineConfig({
   testDir: './e2e/visual',
@@ -24,4 +28,25 @@ export default defineConfig({
     // A screenshot of a half-loaded page is worse than no screenshot.
     actionTimeout: 20_000,
   },
+
+  webServer: [
+    {
+      command: 'npm run start:operator',
+      url: process.env['VEXTO_OPERATOR_URL'] ?? 'http://localhost:4200',
+      reuseExistingServer: true,
+      timeout: 180_000,
+    },
+    {
+      command: 'npm run start:driver',
+      url: process.env['VEXTO_DRIVER_URL'] ?? 'http://localhost:4201',
+      reuseExistingServer: true,
+      timeout: 180_000,
+    },
+    {
+      command: 'npm run start:passenger',
+      url: process.env['VEXTO_PASSENGER_URL'] ?? 'http://localhost:4202',
+      reuseExistingServer: true,
+      timeout: 180_000,
+    },
+  ],
 });

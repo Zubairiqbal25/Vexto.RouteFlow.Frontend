@@ -1,3 +1,4 @@
+export * from './lib/brand';
 export * from './lib/icon/vx-icon';
 export * from './lib/avatar';
 export * from './lib/cards';
@@ -6,6 +7,7 @@ export * from './lib/display';
 export * from './lib/drawer';
 export * from './lib/feedback';
 export * from './lib/page';
+export * from './lib/picker';
 export * from './lib/progress';
 export * from './lib/table';
 export * from './lib/form';

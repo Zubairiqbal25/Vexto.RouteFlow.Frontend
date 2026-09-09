@@ -13,6 +13,7 @@ import { DriversApi, VextoApiError } from '@vexto/api-client';
 import type { DriverResponse } from '@vexto/models';
 import { InvitePanel, type InvitationGateway } from '../../shared/invite-panel';
 import { ToastService, VxField, VxFormSection, VxModal } from '@vexto/ui';
+import { unsavedChangesGuard } from '../../shared/unsaved-changes';
 
 @Component({
   selector: 'vexto-driver-form',
@@ -25,7 +26,7 @@ import { ToastService, VxField, VxFormSection, VxModal } from '@vexto/ui';
       [dismissable]="!busy()"
       [title]="driver() ? 'Edit driver' : 'Add driver'"
       description="Drivers must hold a valid licence before they can be activated."
-      (closed)="dismissed.emit()"
+      (closed)="tryDismiss()"
     >
       <form [formGroup]="form" (ngSubmit)="submit()" id="driver-form">
         @if (formError(); as message) {
@@ -120,7 +121,7 @@ import { ToastService, VxField, VxFormSection, VxModal } from '@vexto/ui';
         footer
         class="vx-btn vx-btn-secondary"
         [disabled]="busy()"
-        (click)="dismissed.emit()"
+        (click)="tryDismiss()"
       >
         Cancel
       </button>
@@ -147,6 +148,20 @@ export class DriverForm {
   /** The panel, so its status can be loaded once the drawer opens on an existing driver. */
   private readonly invitePanel = viewChild<InvitePanel>('invitePanel');
   readonly dismissed = output<void>();
+
+  private readonly confirmDiscard = unsavedChangesGuard();
+
+  /**
+   * Closes the form, asking first when there is unsaved work in it.
+   *
+   * Every way out of this form routes through here — the close button, the backdrop and Escape all
+   * raise the same event — so there is no path that quietly discards what somebody typed.
+   */
+  protected async tryDismiss(): Promise<void> {
+    if (await this.confirmDiscard(this.form)) {
+      this.dismissed.emit();
+    }
+  }
   readonly saved = output<DriverResponse>();
 
   protected readonly busy = signal(false);

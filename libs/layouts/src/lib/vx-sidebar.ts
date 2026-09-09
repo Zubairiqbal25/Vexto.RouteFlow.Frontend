@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { TenantContextService } from '@vexto/auth';
 import { PermissionService } from '@vexto/permissions';
-import { VxIcon } from '@vexto/ui';
+import { VxIcon, VxLogo } from '@vexto/ui';
 import type { NavSection } from './navigation';
 
 /**
@@ -22,7 +23,7 @@ import type { NavSection } from './navigation';
 @Component({
   selector: 'vx-sidebar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, RouterLinkActive, VxIcon],
+  imports: [RouterLink, RouterLinkActive, VxIcon, VxLogo],
   template: `
     <aside
       class="fixed inset-y-0 start-0 z-40 flex flex-col transition-[transform,width] duration-200 ease-out xl:translate-x-0"
@@ -31,15 +32,35 @@ import type { NavSection } from './navigation';
       [class.-translate-x-full]="!mobileOpen()"
       [class.translate-x-0]="mobileOpen()"
     >
-      <div class="flex h-16 flex-none items-center gap-2.5 px-5">
-        <a routerLink="/" class="flex items-center gap-2.5" aria-label="Vexto home">
-          <span
-            class="flex size-9 flex-none items-center justify-center rounded-xl text-base font-bold text-white"
-            style="background: linear-gradient(135deg, var(--vexto-primary) 0%, var(--vexto-primary-active) 100%)"
-            >V</span
-          >
-          @if (!collapsed()) {
-            <span class="text-[0.95rem] font-semibold tracking-tight text-white">Vexto</span>
+      <div
+        class="flex h-16 flex-none items-center"
+        [class.justify-center]="collapsed()"
+        [class.px-5]="!collapsed()"
+      >
+        <!--
+          Collapsed, the rail is 76px wide and the mark stands alone — which is exactly what the
+          symbol is for. Expanded, it is the full horizontal lockup. One component, one variant.
+        -->
+        <a routerLink="/" class="flex flex-col justify-center" aria-label="Vexto home">
+          <vx-logo
+            [variant]="collapsed() ? 'mark' : 'horizontal'"
+            tone="on-dark"
+            [height]="22"
+            label=""
+          />
+
+          <!--
+            ServiceAdmin gets the same Vexto brand with the platform context named under it, rather
+            than a logo of its own: it is the same product, seen from above. Named only while they
+            are actually working across tenants — once they enter one operator's support context the
+            top bar says whose, and this line would be a lie.
+          -->
+          @if (!collapsed() && platformContext()) {
+            <span
+              class="vx-section-label mt-1 ps-0.5"
+              style="color: var(--vexto-nav-section)"
+              >Platform administration</span
+            >
           }
         </a>
       </div>
@@ -125,6 +146,13 @@ export class VxSidebar {
   readonly mobileOpen = input(false);
   readonly collapseToggled = output<void>();
   readonly navigated = output<void>();
+
+  private readonly tenantContext = inject(TenantContextService);
+
+  /** A platform administrator who has not entered any single operator's support context. */
+  protected readonly platformContext = computed(
+    () => this.tenantContext.canSwitch() && this.tenantContext.current() === null,
+  );
 
   protected readonly visibleSections = computed(() =>
     this.sections()

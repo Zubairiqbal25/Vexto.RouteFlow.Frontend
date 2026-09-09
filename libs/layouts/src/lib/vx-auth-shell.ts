@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { VxToastHost } from '@vexto/ui';
+import { VxLogo, VxToastHost } from '@vexto/ui';
 
 /**
  * The signed-out shell: a centred card on the left, a brand panel on the right.
@@ -11,25 +11,20 @@ import { VxToastHost } from '@vexto/ui';
 @Component({
   selector: 'vx-auth-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, VxToastHost],
+  imports: [RouterOutlet, VxToastHost, VxLogo],
   template: `
     <div class="flex min-h-screen bg-surface">
       <div class="flex flex-1 items-center justify-center p-6">
         <div class="w-full max-w-sm">
-          <div class="mb-8 flex items-center gap-2.5">
-            <span
-              class="flex size-10 items-center justify-center rounded-xl text-lg font-bold text-white"
-              style="background: linear-gradient(135deg, var(--vexto-primary) 0%, var(--vexto-primary-active) 100%)"
-              >V</span
-            >
-            <span class="text-lg font-semibold tracking-tight text-ink">Vexto</span>
+          <div class="mb-8 flex items-center">
+            <vx-logo [height]="26" />
           </div>
           <router-outlet />
         </div>
       </div>
 
       <div
-        class="relative hidden w-[46%] max-w-2xl flex-col justify-end overflow-hidden p-12 lg:flex"
+        class="relative hidden w-[46%] max-w-2xl flex-col justify-end overflow-hidden p-12 text-white lg:flex"
         style="background: linear-gradient(150deg, var(--vexto-nav-bg) 0%, var(--vexto-primary-active) 140%)"
         aria-hidden="true"
       >
@@ -37,7 +32,12 @@ import { VxToastHost } from '@vexto/ui';
           class="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full opacity-25"
           style="background: radial-gradient(circle, var(--vexto-primary-300) 0%, transparent 65%)"
         ></div>
-        <p class="max-w-md text-2xl font-semibold leading-snug tracking-tight text-white">
+        <!-- Monochrome white: the panel's ground is a brand-coloured gradient, and the teal mark on
+             teal is the one place the coloured lockup stops working. The whole panel is
+             aria-hidden, so this repeats nothing to a screen reader. -->
+        <vx-logo class="mb-auto self-start" variant="horizontal" tone="mono" [height]="24" label="" />
+
+        <p class="mt-10 max-w-md text-2xl font-semibold leading-snug tracking-tight text-white">
           {{ headlineText() }}
         </p>
         <p class="mt-3 max-w-md text-body" style="color: var(--vexto-nav-text)">

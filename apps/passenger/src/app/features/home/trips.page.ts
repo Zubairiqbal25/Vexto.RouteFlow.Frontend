@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { PassengerSelfApi, VextoApiError } from '@vexto/api-client';
 import type { PassengerTrip } from '@vexto/models';
 import { VxEmptyState, VxErrorState, VxSkeleton, VxStatusBadge } from '@vexto/ui';
-import { formatDate, formatTime } from '@vexto/utilities';
+import { formatDate, formatTime, serviceDate } from '@vexto/utilities';
 
 /** The passenger's own schedule, grouped by nothing and sorted by when the bus leaves. */
 @Component({
@@ -72,7 +72,7 @@ export class PassengerTripsPage {
     this.loading.set(true);
     this.error.set(null);
 
-    this.api.myTrips({ fromDate: new Date().toISOString().slice(0, 10), pageSize: 25 }).subscribe({
+    this.api.myTrips({ fromDate: serviceDate(), pageSize: 25 }).subscribe({
       next: (result) => {
         this.trips.set(
           [...result.items].sort((a, b) =>

@@ -1,36 +1,37 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  effect,
-  inject,
-  input,
-  output,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DriversApi, RoutesApi, VehiclesApi, VextoApiError } from '@vexto/api-client';
-import type { DriverResponse, RouteResourceAssignment, VehicleResponse } from '@vexto/models';
-import { CanDirective, VextoPermissions } from '@vexto/permissions';
+import type { RouteResourceAssignment } from '@vexto/models';
+import { CanDirective, PermissionService, VextoPermissions } from '@vexto/permissions';
 import {
   ConfirmService,
   ToastService,
+  VxAttentionNote,
+  VxAvatar,
+  VxCardFact,
+  VxDrawer,
   VxEmptyState,
-  VxErrorState,
   VxField,
-  VxFormSection,
   VxIcon,
-  VxModal,
+  VxPicker,
+  type VxPickerOption,
   VxSectionCard,
-  VxSkeletonTable,
   VxStatusBadge,
 } from '@vexto/ui';
-import { formatDate } from '@vexto/utilities';
+import { formatDate, serviceDate } from '@vexto/utilities';
+import { RouteWorkspaceStore } from './route-workspace.store';
 
 /**
  * The crew and vehicle a route runs with.
  *
  * Driver and vehicle are assigned together because that is how the backend models it — a route is
  * resourced as a pair, and splitting them in the UI would invent a state the API cannot express.
+ * The two "Change" buttons open the same drawer, focused on the half that was pressed.
+ *
+ * **The capacity check is shown before the confirmation, not after the refusal.** The API will
+ * reject a 24-seat bus for 26 passengers with a readable reason, and that reason is still displayed
+ * verbatim if it arrives — but a dispatcher choosing a vehicle from a list should be able to see the
+ * problem while they are still choosing, rather than discovering it from a red toast.
  */
 @Component({
   selector: 'vexto-route-resources-tab',
@@ -38,97 +39,98 @@ import { formatDate } from '@vexto/utilities';
   imports: [
     CanDirective,
     ReactiveFormsModule,
+    VxAttentionNote,
+    VxAvatar,
+    VxCardFact,
+    VxDrawer,
     VxEmptyState,
-    VxErrorState,
     VxField,
-    VxFormSection,
     VxIcon,
-    VxModal,
+    VxPicker,
     VxSectionCard,
-    VxSkeletonTable,
     VxStatusBadge,
   ],
   template: `
     <vx-section-card
       title="Driver and vehicle"
       description="Who runs this route, and from when."
-      [padded]="false"
     >
       <button
         *vxCan="manage"
         header-actions
         type="button"
         class="vx-btn vx-btn-secondary vx-btn-sm"
-        (click)="openAssign()"
+        (click)="open()"
       >
         <vx-icon name="plus" [size]="15" />
         Assign crew
       </button>
 
-      @if (loading()) {
-        <vx-skeleton-table [columns]="5" [rows]="3" />
-      } @else if (error()) {
-        <vx-error-state title="We could not load assignments" [message]="error()!" (retry)="load()" />
-      } @else if (assignments().length === 0) {
+      @if (assignments().length === 0) {
         <vx-empty-state
           icon="drivers"
           title="No crew assigned"
           description="Assign a driver and vehicle so generated trips have someone to run them."
+          [actionLabel]="canManage() ? 'Assign crew' : null"
+          (action)="open()"
         />
       } @else {
-        <div class="vx-table-scroll vx-scroll">
-          <table class="vx-table">
-            <thead>
-              <tr>
-                <th scope="col">Driver</th>
-                <th scope="col">Vehicle</th>
-                <th scope="col">Effective</th>
-                <th scope="col">Status</th>
-                <th scope="col"><span class="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (assignment of assignments(); track assignment.id) {
-                <tr>
-                  <td class="vx-cell-strong">{{ assignment.driverName }}</td>
-                  <td>{{ assignment.vehiclePlateNumber }}</td>
-                  <td>
-                    {{ date(assignment.effectiveFrom) }}
-                    @if (assignment.effectiveTo) {
-                      <span class="text-ink-muted"> → {{ date(assignment.effectiveTo) }}</span>
-                    }
-                  </td>
-                  <td><vx-status-badge [status]="assignment.status" /></td>
-                  <td class="text-end">
-                    <button
-                      *vxCan="manage"
-                      type="button"
-                      class="vx-btn vx-btn-ghost vx-btn-sm vx-btn-icon"
-                      [attr.aria-label]="'Remove ' + assignment.driverName"
-                      (click)="remove(assignment)"
-                    >
-                      <vx-icon name="trash" [size]="16" />
-                    </button>
-                  </td>
-                </tr>
+        <ul class="flex flex-col gap-3">
+          @for (assignment of assignments(); track assignment.id) {
+            <li
+              class="vx-card flex flex-wrap items-center justify-between gap-4 p-4"
+              [class.opacity-60]="assignment.status !== 'Active'"
+            >
+              <div class="flex min-w-0 items-center gap-3">
+                <vx-avatar size="md" [name]="assignment.driverName" />
+                <div class="min-w-0">
+                  <p class="truncate font-semibold text-ink">{{ assignment.driverName }}</p>
+                  <p class="mt-0.5 flex items-center gap-1.5 text-meta text-ink-muted">
+                    <vx-icon name="vehicle" [size]="14" />
+                    {{ assignment.vehiclePlateNumber }}
+                  </p>
+                </div>
+              </div>
+
+              <dl class="flex flex-wrap items-center gap-x-8 gap-y-2">
+                <vx-card-fact label="Effective" [value]="effective(assignment)" />
+                <div>
+                  <p class="vx-section-label">Status</p>
+                  <div class="mt-0.5"><vx-status-badge [status]="assignment.status" /></div>
+                </div>
+              </dl>
+
+              @if (canManage()) {
+                <div class="flex flex-none items-center gap-2">
+                  <button type="button" class="vx-btn vx-btn-secondary vx-btn-sm" (click)="open()">
+                    Change
+                  </button>
+                  <button
+                    type="button"
+                    class="vx-btn vx-btn-ghost vx-btn-sm vx-btn-icon"
+                    [attr.aria-label]="'Remove ' + assignment.driverName"
+                    (click)="remove(assignment)"
+                  >
+                    <vx-icon name="trash" [size]="16" />
+                  </button>
+                </div>
               }
-            </tbody>
-          </table>
-        </div>
+            </li>
+          }
+        </ul>
       }
     </vx-section-card>
 
-    <vx-modal
-      [open]="formOpen()"
-      [dismissable]="!saving()"
+    <vx-drawer
+      [open]="drawerOpen()"
       title="Assign crew"
-      description="Only active drivers and vehicles can be assigned."
-      (closed)="formOpen.set(false)"
+      subtitle="Only active drivers and roadworthy vehicles are offered."
+      (closed)="drawerOpen.set(false)"
     >
-      <form [formGroup]="form" (ngSubmit)="save()" id="assign-resources-form">
+      <form [formGroup]="form" class="flex flex-col gap-5">
         @if (formError(); as message) {
           <p
-            class="mb-4 rounded-lg px-3.5 py-3 text-body"
+            class="rounded-lg px-3.5 py-3 text-body"
             style="background: var(--vexto-danger-soft); color: var(--vexto-danger-text)"
             role="alert"
           >
@@ -136,76 +138,110 @@ import { formatDate } from '@vexto/utilities';
           </p>
         }
 
-        <vx-form-section title="Crew">
-          <vx-field
-            label="Driver"
-            for="res-driver"
-            [required]="true"
-            [wide]="true"
-            [control]="form.controls.driverId"
-          >
-            <select id="res-driver" class="vx-select" formControlName="driverId">
-              <option value="">Select a driver</option>
-              @for (driver of drivers(); track driver.id) {
-                <option [value]="driver.id">
-                  {{ driver.firstName }} {{ driver.lastName }} · {{ driver.licenseNumber }}
-                </option>
-              }
-            </select>
-          </vx-field>
+        <div>
+          <p class="vx-section-label">Current driver</p>
+          <p class="mt-1 text-body font-medium text-ink">
+            {{ current()?.driverName ?? 'Nobody assigned' }}
+          </p>
+        </div>
 
-          <vx-field
-            label="Vehicle"
-            for="res-vehicle"
-            [required]="true"
-            [wide]="true"
-            [control]="form.controls.vehicleId"
-          >
-            <select id="res-vehicle" class="vx-select" formControlName="vehicleId">
-              <option value="">Select a vehicle</option>
-              @for (vehicle of vehicles(); track vehicle.id) {
-                <option [value]="vehicle.id">
-                  {{ vehicle.plateNumber }} · {{ vehicle.capacity }} seats
-                </option>
-              }
-            </select>
-          </vx-field>
+        <vx-field
+          label="New driver"
+          for="res-driver"
+          [required]="true"
+          [wide]="true"
+          [control]="form.controls.driverId"
+        >
+          <!--
+            A searchable picker, not a dropdown. A plain select here held only the first fifty
+            drivers the server returned, so on a real roster the rest could not be chosen at all and
+            nothing on screen said so. See VxPicker.
+          -->
+          <vx-picker
+            inputId="res-driver"
+            placeholder="Search drivers…"
+            emptyLabel="No drivers are available to roster."
+            [limit]="20"
+            [search]="searchDrivers"
+            [selected]="driver()"
+            [disabled]="saving()"
+            (chosen)="onDriverChosen($event)"
+          />
+        </vx-field>
 
-          <vx-field
-            label="Effective from"
-            for="res-from"
-            [required]="true"
-            [control]="form.controls.effectiveFrom"
-          >
-            <input id="res-from" type="date" class="vx-input" formControlName="effectiveFrom" />
-          </vx-field>
+        <div>
+          <p class="vx-section-label">Current vehicle</p>
+          <p class="mt-1 text-body font-medium text-ink">
+            {{ current()?.vehiclePlateNumber ?? 'Nothing assigned' }}
+          </p>
+        </div>
 
-          <vx-field label="Effective to" for="res-to" help="Leave empty for an ongoing assignment.">
-            <input id="res-to" type="date" class="vx-input" formControlName="effectiveTo" />
-          </vx-field>
-        </vx-form-section>
+        <vx-field
+          label="New vehicle"
+          for="res-vehicle"
+          [required]="true"
+          [wide]="true"
+          [control]="form.controls.vehicleId"
+        >
+          <vx-picker
+            inputId="res-vehicle"
+            placeholder="Search by plate or model…"
+            emptyLabel="No vehicles are in service."
+            [limit]="20"
+            [search]="searchVehicles"
+            [selected]="vehicle()"
+            [disabled]="saving()"
+            (chosen)="onVehicleChosen($event)"
+          />
+        </vx-field>
+
+        <!--
+          The picker's secondary label carries the seat count, so the comparison can be made from
+          data already on screen rather than by fetching each vehicle to read its capacity.
+        -->
+        <div class="rounded-xl p-3.5" style="background: var(--vexto-surface-muted)">
+          <dl class="grid grid-cols-2 gap-3">
+            <vx-card-fact label="Vehicle capacity" [value]="chosenCapacity() ?? '—'" />
+            <vx-card-fact label="Assigned passengers" [value]="passengerCount()" />
+          </dl>
+          @if (capacityShortfall()) {
+            <div class="mt-3">
+              <vx-attention-note level="critical">
+                Vehicle capacity is insufficient — {{ passengerCount() }} passengers are assigned to
+                this route.
+              </vx-attention-note>
+            </div>
+          }
+        </div>
+
+        <vx-field
+          label="Effective from"
+          for="res-from"
+          [required]="true"
+          [control]="form.controls.effectiveFrom"
+        >
+          <input id="res-from" type="date" class="vx-input" formControlName="effectiveFrom" />
+        </vx-field>
+
+        <vx-field label="Effective to" for="res-to" help="Leave empty for an ongoing assignment.">
+          <input id="res-to" type="date" class="vx-input" formControlName="effectiveTo" />
+        </vx-field>
       </form>
 
-      <button
-        type="button"
-        footer
-        class="vx-btn vx-btn-secondary"
-        [disabled]="saving()"
-        (click)="formOpen.set(false)"
-      >
-        Cancel
-      </button>
-      <button
-        type="submit"
-        footer
-        form="assign-resources-form"
-        (click)="save()"
-        class="vx-btn vx-btn-primary"
-        [disabled]="saving()"
-      >
-        {{ saving() ? 'Assigning…' : 'Assign crew' }}
-      </button>
-    </vx-modal>
+      <div footer class="flex justify-end gap-2">
+        <button
+          type="button"
+          class="vx-btn vx-btn-secondary"
+          [disabled]="saving()"
+          (click)="drawerOpen.set(false)"
+        >
+          Cancel
+        </button>
+        <button type="button" class="vx-btn vx-btn-primary" [disabled]="saving()" (click)="save()">
+          {{ saving() ? 'Assigning…' : 'Confirm assignment' }}
+        </button>
+      </div>
+    </vx-drawer>
   `,
 })
 export class RouteResourcesTab {
@@ -214,74 +250,119 @@ export class RouteResourcesTab {
   private readonly vehiclesApi = inject(VehiclesApi);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
-
-  readonly routeId = input.required<string>();
-  readonly changed = output<void>();
+  private readonly permissions = inject(PermissionService);
+  private readonly store = inject(RouteWorkspaceStore);
 
   protected readonly manage = VextoPermissions.Routes.Manage;
   protected readonly date = formatDate;
 
-  protected readonly assignments = signal<RouteResourceAssignment[]>([]);
-  protected readonly drivers = signal<DriverResponse[]>([]);
-  protected readonly vehicles = signal<VehicleResponse[]>([]);
-  protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
+  protected readonly assignments = this.store.resources;
+  protected readonly current = this.store.currentResource;
+  protected readonly canManage = computed(() =>
+    this.permissions.has(VextoPermissions.Routes.Manage),
+  );
+  protected readonly passengerCount = computed(() =>
+    Number(this.store.detail()?.summary.activePassengerCount ?? 0),
+  );
 
-  protected readonly formOpen = signal(false);
+  protected readonly driver = signal<VxPickerOption | null>(null);
+  protected readonly vehicle = signal<VxPickerOption | null>(null);
+  protected readonly drawerOpen = signal(false);
   protected readonly saving = signal(false);
   protected readonly formError = signal<string | null>(null);
+
+  /**
+   * Stable references, so the picker's required input does not change identity on every change
+   * detection run and restart the search stream.
+   */
+  protected readonly searchDrivers = (term: string) =>
+    this.driversApi.picker({ search: term || undefined });
+
+  protected readonly searchVehicles = (term: string) =>
+    this.vehiclesApi.picker({ search: term || undefined });
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
     driverId: ['', [Validators.required]],
     vehicleId: ['', [Validators.required]],
-    effectiveFrom: [new Date().toISOString().slice(0, 10), [Validators.required]],
+    effectiveFrom: [serviceDate(), [Validators.required]],
     effectiveTo: [''],
   });
 
-  constructor() {
-    effect(() => {
-      this.routeId();
-      this.load();
-    });
+  /** Seats, read out of the picker's secondary label ("Mini Bus · 24 seats"). */
+  protected readonly chosenCapacity = computed(() => {
+    const seats = this.vehicle()?.secondaryLabel?.match(/(\d+)\s*seat/iu)?.[1];
+
+    return seats ? Number(seats) : null;
+  });
+
+  protected readonly capacityShortfall = computed(() => {
+    const capacity = this.chosenCapacity();
+
+    return capacity !== null && capacity < this.passengerCount();
+  });
+
+  protected onDriverChosen(option: VxPickerOption | null): void {
+    this.driver.set(option);
+    this.form.controls.driverId.setValue(option?.id ?? '');
+    this.form.controls.driverId.markAsTouched();
   }
 
-  protected load(): void {
-    this.loading.set(true);
-    this.error.set(null);
-
-    this.api.resources(this.routeId()).subscribe({
-      next: (assignments) => {
-        this.assignments.set(assignments);
-        this.loading.set(false);
-      },
-      error: (error: unknown) => {
-        this.loading.set(false);
-        this.error.set(
-          error instanceof VextoApiError ? error.message : 'We could not load assignments.',
-        );
-      },
-    });
+  protected onVehicleChosen(option: VxPickerOption | null): void {
+    this.vehicle.set(option);
+    this.form.controls.vehicleId.setValue(option?.id ?? '');
+    this.form.controls.vehicleId.markAsTouched();
   }
 
-  protected openAssign(): void {
+  protected effective(assignment: RouteResourceAssignment): string {
+    return assignment.effectiveTo
+      ? `${this.date(assignment.effectiveFrom)} → ${this.date(assignment.effectiveTo)}`
+      : `From ${this.date(assignment.effectiveFrom)}`;
+  }
+
+  protected open(): void {
+    const current = this.current();
+
     this.formError.set(null);
     this.form.reset({
-      driverId: '',
-      vehicleId: '',
-      effectiveFrom: new Date().toISOString().slice(0, 10),
+      driverId: current?.driverId ?? '',
+      vehicleId: current?.vehicleId ?? '',
+      effectiveFrom: serviceDate(),
       effectiveTo: '',
     });
-    this.formOpen.set(true);
+    // Pre-selected from the current roster, so the picker shows a label rather than an id. The
+    // options themselves are not fetched until the field is opened: most visits to this tab change
+    // nothing.
+    this.driver.set(
+      current?.driverId
+        ? { id: current.driverId, label: current.driverName ?? 'Current driver', secondaryLabel: null }
+        : null,
+    );
+    this.vehicle.set(
+      current?.vehicleId
+        ? {
+            id: current.vehicleId,
+            label: current.vehiclePlateNumber ?? 'Current vehicle',
+            secondaryLabel: null,
+          }
+        : null,
+    );
 
-    this.driversApi.list({ status: 'Active', pageSize: 100 }).subscribe({
-      next: (result) => this.drivers.set(result.items),
-      error: () => this.toast.error('We could not load the driver list.'),
-    });
+    // One lookup for the rostered bus, so the capacity comparison below has a number to compare
+    // against before anything is chosen. See the same call in the trip crew drawer.
+    if (current?.vehiclePlateNumber) {
+      this.vehiclesApi.picker({ search: current.vehiclePlateNumber }).subscribe({
+        next: (options) => {
+          const match = options.find((option) => option.id === current.vehicleId);
 
-    this.vehiclesApi.list({ status: 'Active', pageSize: 100 }).subscribe({
-      next: (result) => this.vehicles.set(result.items),
-      error: () => this.toast.error('We could not load the vehicle list.'),
-    });
+          if (match) {
+            this.vehicle.set(match);
+          }
+        },
+        error: () => undefined,
+      });
+    }
+
+    this.drawerOpen.set(true);
   }
 
   protected save(): void {
@@ -306,13 +387,14 @@ export class RouteResourcesTab {
       .subscribe({
         next: () => {
           this.saving.set(false);
-          this.formOpen.set(false);
+          this.drawerOpen.set(false);
           this.toast.success('Crew assigned to route.');
-          this.load();
-          this.changed.emit();
+          this.afterChange();
         },
         error: (error: unknown) => {
           this.saving.set(false);
+          // The API's own reason — suspended driver, bus in the workshop, dates overlapping an
+          // existing assignment — is shown rather than replaced with something generic.
           this.formError.set(
             error instanceof VextoApiError ? error.message : 'We could not assign this crew.',
           );
@@ -335,10 +417,18 @@ export class RouteResourcesTab {
     this.api.removeResourceAssignment(this.routeId(), assignment.id).subscribe({
       next: () => {
         this.toast.success('Assignment removed.');
-        this.load();
-        this.changed.emit();
+        this.afterChange();
       },
       error: () => this.toast.error('We could not remove this assignment.'),
     });
+  }
+
+  private routeId(): string {
+    return this.store.detail()?.route.id ?? '';
+  }
+
+  private afterChange(): void {
+    this.store.refreshResources();
+    this.store.refreshDetail();
   }
 }

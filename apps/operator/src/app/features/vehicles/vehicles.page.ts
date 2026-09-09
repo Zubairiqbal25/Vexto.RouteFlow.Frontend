@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { VehiclesApi } from '@vexto/api-client';
 import type { VehicleOperations, VehicleResponse } from '@vexto/models';
-import { CanDirective, VextoPermissions } from '@vexto/permissions';
+import { CanDirective, PermissionService, VextoPermissions } from '@vexto/permissions';
 import {
   ConfirmService,
   ToastService,
@@ -23,7 +23,9 @@ import { humanizeEnum } from '@vexto/utilities';
 import { listViewPreference } from '../../shared/list-view';
 import { PagedList } from '../../shared/paged-list';
 import { VehicleCard } from './vehicle-card';
+import { VehicleDrawer } from './vehicle-drawer';
 import { VehicleForm } from './vehicle-form';
+import { openFormOnNewParam } from '../../shared/new-record';
 
 interface VehicleFilters extends Record<string, unknown> {
   search: string;
@@ -36,6 +38,7 @@ interface VehicleFilters extends Record<string, unknown> {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CanDirective,
+    VehicleDrawer,
     VehicleForm,
     VxEmptyState,
     VxErrorState,
@@ -147,7 +150,8 @@ interface VehicleFilters extends Record<string, unknown> {
             <vexto-vehicle-card
               [vehicle]="vehicle"
               [operations]="operationsFor(vehicle.id)"
-              (opened)="edit(vehicle)"
+              [selected]="previewing()?.id === vehicle.id"
+              (opened)="preview(vehicle)"
               (action)="onCardAction(vehicle, $event)"
             />
           }
@@ -199,7 +203,7 @@ interface VehicleFilters extends Record<string, unknown> {
               <td><vx-status-badge [status]="vehicle.status" /></td>
               <td class="text-end">
                 <vx-row-actions [label]="'Actions for ' + vehicle.plateNumber">
-                  <vx-row-action icon="eye" (selected)="edit(vehicle)">View</vx-row-action>
+                  <vx-row-action icon="eye" (selected)="preview(vehicle)">View</vx-row-action>
                   <ng-container *vxCan="manage">
                     <vx-row-action icon="edit" (selected)="edit(vehicle)">Edit</vx-row-action>
                     @if (vehicle.status !== 'Maintenance') {
@@ -226,6 +230,14 @@ interface VehicleFilters extends Record<string, unknown> {
       }
     </vx-table-shell>
 
+    <vexto-vehicle-drawer
+      [vehicle]="previewing()"
+      [operations]="previewing() ? operationsFor(previewing()!.id) : null"
+      [canManage]="canManage()"
+      (closed)="previewing.set(null)"
+      (edit)="editFromDrawer($event)"
+    />
+
     <vexto-vehicle-form
       [open]="formOpen()"
       [vehicle]="editing()"
@@ -238,11 +250,15 @@ export class VehiclesPage {
   private readonly api = inject(VehiclesApi);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
+  private readonly permissions = inject(PermissionService);
 
   protected readonly manage = VextoPermissions.Fleet.Manage;
   protected readonly label = humanizeEnum;
 
   protected readonly formOpen = signal(false);
+  /** The vehicle the quick-view drawer is showing. Opening a card previews rather than edits. */
+  protected readonly previewing = signal<VehicleResponse | null>(null);
+  protected readonly canManage = computed(() => this.permissions.has(VextoPermissions.Fleet.Manage));
   protected readonly editing = signal<VehicleResponse | null>(null);
 
   private readonly preference = listViewPreference('vehicles');
@@ -269,6 +285,9 @@ export class VehiclesPage {
   );
 
   constructor() {
+    // Lets the command palette’s “Create…” quick action land here with the form already open.
+    openFormOnNewParam(() => this.add());
+
     // One batched request per page of results.
     effect(() => {
       const vehicles = this.list.items();
@@ -338,6 +357,16 @@ export class VehiclesPage {
   protected add(): void {
     this.editing.set(null);
     this.formOpen.set(true);
+  }
+
+  /** Opening a card previews it; editing is a deliberate second step from inside the drawer. */
+  protected preview(vehicle: VehicleResponse): void {
+    this.previewing.set(vehicle);
+  }
+
+  protected editFromDrawer(vehicle: VehicleResponse): void {
+    this.previewing.set(null);
+    this.edit(vehicle);
   }
 
   protected edit(vehicle: VehicleResponse): void {

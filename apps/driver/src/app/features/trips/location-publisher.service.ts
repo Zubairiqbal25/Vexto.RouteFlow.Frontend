@@ -65,7 +65,20 @@ export class LocationPublisher {
   private readonly _state = signal<LocationState>('idle');
   private readonly _lastPublishedAt = signal<Date | null>(null);
 
+  private readonly _position = signal<{ lat: number; lng: number; heading: number | null } | null>(
+    null,
+  );
+
   readonly state = this._state.asReadonly();
+
+  /**
+   * The bus’s own last fix, for drawing it on the driver’s map.
+   *
+   * Read straight off the device rather than round-tripped through the API: the driver already has
+   * the freshest possible position in their hand, and asking the server where they are would be
+   * slower, less accurate and pointless.
+   */
+  readonly position = this._position.asReadonly();
   readonly lastPublishedAt = this._lastPublishedAt.asReadonly();
 
   readonly isActive = computed(() => this._state() === 'active');
@@ -108,6 +121,11 @@ export class LocationPublisher {
     this.watchId = navigator.geolocation.watchPosition(
       (position) => {
         this.lastFix = position;
+        this._position.set({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          heading: Number.isFinite(position.coords.heading) ? position.coords.heading : null,
+        });
         this._state.set('active');
       },
       (error) => {
@@ -135,6 +153,7 @@ export class LocationPublisher {
 
     this.tripId = null;
     this.lastFix = null;
+    this._position.set(null);
     this.publishing = false;
     this._state.set('idle');
   }

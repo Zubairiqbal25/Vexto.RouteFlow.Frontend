@@ -11,7 +11,7 @@ import {
   VxSkeleton,
   VxStatusBadge,
 } from '@vexto/ui';
-import { formatDate } from '@vexto/utilities';
+import { formatDate, serviceDate } from '@vexto/utilities';
 
 /**
  * Telling the operator you are not travelling.
@@ -186,8 +186,5 @@ export class PassengerAbsencesPage {
 }
 
 function tomorrow(): string {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-
-  return date.toISOString().slice(0, 10);
+  return serviceDate(1);
 }

@@ -27,7 +27,7 @@ test('sees what they owe', async ({ page }) => {
 
 test('opens the invoice and sees what it is for', async ({ page }) => {
   await page.goto('/payments');
-  await page.getByText(/INV-/u).first().click();
+  await openOutstandingInvoice(page);
 
   await expect(page).toHaveURL(/\/payments\/[0-9a-f-]{36}/u);
 
@@ -41,7 +41,7 @@ test('opens the invoice and sees what it is for', async ({ page }) => {
  */
 test('pays the invoice and waits for the provider to confirm', async ({ page }) => {
   await page.goto('/payments');
-  await page.getByText(/INV-/u).first().click();
+  await openOutstandingInvoice(page);
 
   // Waited for: reading the URL immediately after a click races the navigation, and an invoice id
   // read half a beat early is not an id at all.
@@ -84,3 +84,21 @@ test('the paid invoice appears as settled in the list', async ({ page }) => {
   await expect(page.getByText('Earlier')).toBeVisible();
   await expect(page.getByText('Paid').first()).toBeVisible();
 });
+
+/**
+ * Opens an invoice that is actually payable.
+ *
+ * **Not simply the first one on the page.** A pilot database keeps every invoice every previous run
+ * raised and settled, and the first row is very often one that has already been paid — which the
+ * API correctly refuses to start a second payment for, with a 400 that reads like a broken payment
+ * pipeline rather than like the test choosing the wrong invoice.
+ *
+ * The page already separates what is owed from what is settled, under "Due now", so this picks from
+ * there — which is also the only part of the screen a passenger with something to pay looks at.
+ */
+async function openOutstandingInvoice(page: import('@playwright/test').Page): Promise<void> {
+  const due = page.locator('section', { has: page.getByText('Due now') });
+
+  await expect(due).toBeVisible();
+  await due.getByRole('link').first().click();
+}

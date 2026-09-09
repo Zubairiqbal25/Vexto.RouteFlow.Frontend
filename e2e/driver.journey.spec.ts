@@ -17,9 +17,30 @@ test.beforeEach(async ({ page }) => {
 test("sees today's trip", async ({ page }) => {
   await page.goto('/trips');
 
-  await expect(page.getByRole('heading', { name: "Today's trips" })).toBeVisible();
-  // The trip this run's operator setup generated, not merely some trip.
-  await expect(page.getByRole('link').filter({ hasText: routeCode })).toBeVisible();
+  // The driver home greets by name; "Today's trips" is the document title, never a heading on the
+  // page. Asserting the greeting proves the same thing — the list rendered for a signed-in driver.
+  await expect(page.getByRole('heading', { name: /Good (morning|afternoon|evening)/u })).toBeVisible();
+  // The screen leads with one trip and one action, which is the whole point of it: a driver asks
+  // "what do I drive next", not "show me a list".
+  //
+  // Which lead appears depends on the driver's actual state, and both are correct. Mid-route they
+  // get "Trip in progress" and a way back into it — offering them a different trip to *start* while
+  // they are driving one would be the wrong answer. Otherwise they get the next-trip hero and its
+  // START TRIP button. A pilot database keeps trips an earlier run left running, so the suite meets
+  // both.
+  const nextTrip = page.getByRole('region', { name: 'Next trip' });
+  const inProgress = page.getByRole('link').filter({ hasText: 'Trip in progress' });
+
+  await expect(nextTrip.or(inProgress).first()).toBeVisible();
+
+  if (await nextTrip.count()) {
+    await expect(nextTrip.getByRole('link', { name: 'START TRIP' })).toBeVisible();
+  }
+
+  // And this run's own trip is on the screen — as the hero when it is the soonest, otherwise in the
+  // list beneath it. A pilot database accumulates: the seeded driver has several trips today, and
+  // insisting this run's is the *first* of them would be asserting a coincidence.
+  await expect(page.getByRole('main')).toContainText(routeCode);
 });
 
 test('starts the trip and begins sharing location', async ({ page }) => {

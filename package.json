@@ -10,8 +10,11 @@
     "build:operator": "ng build operator",
     "build:driver": "ng build driver",
     "build:passenger": "ng build passenger",
-    "test": "ng test operator",
+    "test": "ng test operator && ng test driver && ng test passenger",
     "lint": "eslint .",
+    "brand:generate": "node tools/brand/generate.mjs",
+    "brand:verify": "node tools/brand/verify.mjs",
+    "brand:review": "node tools/brand/review.mjs",
     "api:generate": "npx -y openapi-typescript@7 ../Backend/docs/api/openapi-v1.json -o libs/models/src/lib/generated/vexto-api.ts",
     "e2e": "playwright test",
     "e2e:visual": "playwright test --config playwright.visual.config.ts"

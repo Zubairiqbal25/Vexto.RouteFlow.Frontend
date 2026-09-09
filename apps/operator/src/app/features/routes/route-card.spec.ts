@@ -65,30 +65,49 @@ describe('RouteCard', () => {
     expect(rendered).toContain('A 12345');
   });
 
-  it('stays quiet when the route is ready to run', () => {
+  it('says a ready route is ready rather than saying nothing', () => {
+    // "Active" was never the answer to "can this route run": an active route with no schedule
+    // generates nothing and used to look identical to one that was fine.
     const rendered = text(item());
 
-    expect(rendered).not.toContain('No stops yet');
-    expect(rendered).not.toContain('No schedule');
-    expect(rendered).not.toContain('No crew');
+    expect(rendered).toContain('Ready to run');
+    expect(rendered).not.toContain('Add the pickup');
+    expect(rendered).not.toContain('Add the days');
+    expect(rendered).not.toContain('Assign a driver');
   });
 
   it('flags a route with no stops before anything else', () => {
     // Without stops there is nothing to schedule, so this is the first thing that blocks.
     const rendered = text(item({ stopCount: 0, scheduleCount: 0, currentDriverId: null }));
 
-    expect(rendered).toContain('No stops yet');
-    expect(rendered).not.toContain('No schedule');
+    expect(rendered).toContain('Add the pickup and drop-off points');
+    expect(rendered).not.toContain('Add the days and times');
+    expect(rendered).not.toContain('Ready to run');
   });
 
   it('flags a missing schedule once stops exist', () => {
-    expect(text(item({ scheduleCount: 0 }))).toContain('trips cannot be generated');
+    expect(text(item({ scheduleCount: 0 }))).toContain('Add the days and times');
   });
 
-  it('mentions missing crew only when stops and a schedule are in place', () => {
+  it('mentions a missing driver only when stops and a schedule are in place', () => {
     expect(text(item({ currentDriverId: null, currentDriverName: null }))).toContain(
-      'No crew rostered',
+      'Assign a driver',
     );
+  });
+
+  it('names the missing vehicle when only the bus is unassigned', () => {
+    // Driver and vehicle are separate gaps because they are separate jobs for the dispatcher.
+    expect(
+      text(item({ currentVehicleId: null, currentVehiclePlateNumber: null })),
+    ).toContain('Assign a vehicle');
+  });
+
+  it('treats a route that is not in service as not ready', () => {
+    const route = item();
+    const draft = { ...route, route: { ...route.route, status: 'Draft' } } as RouteListItem;
+
+    expect(text(draft)).toContain('Activate this route');
+    expect(text(draft)).not.toContain('Ready to run');
   });
 
   it('disables Generate trips when the route has no schedule', () => {

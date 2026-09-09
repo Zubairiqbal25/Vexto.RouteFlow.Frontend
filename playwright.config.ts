@@ -47,14 +47,30 @@ export default defineConfig({
   // has started the trip, and the operator cannot verify attendance before it has been recorded.
   projects: [
     {
+      name: 'platform',
+      testMatch: /platform.setup.spec.ts/u,
+      use: { ...devices['Desktop Chrome'], baseURL: OPERATOR_URL },
+    },
+    {
       name: 'operator-setup',
+      dependencies: ['platform'],
       testMatch: /operator.setup.spec.ts/u,
+      use: { ...devices['Desktop Chrome'], baseURL: OPERATOR_URL },
+    },
+    // The operational depth added in the pilot-completion phase: agreements and their documents,
+    // route readiness, the trip activity timeline, the enriched manifest and the attention panel.
+    // Between setup and the driver because it reads a trip that has not been driven yet, and
+    // because it leaves this run's trip exactly as it found it.
+    {
+      name: 'operator-depth',
+      dependencies: ['operator-setup'],
+      testMatch: /operator.depth.spec.ts/u,
       use: { ...devices['Desktop Chrome'], baseURL: OPERATOR_URL },
     },
     {
       name: 'driver',
       testMatch: /driver.journey.spec.ts/u,
-      dependencies: ['operator-setup'],
+      dependencies: ['operator-depth'],
       // A driver works from a mounted tablet, and the layout is built for that viewport.
       use: { ...devices['iPad (gen 7) landscape'], baseURL: DRIVER_URL },
     },
@@ -65,9 +81,15 @@ export default defineConfig({
       use: { ...devices['Pixel 7'], baseURL: PASSENGER_URL },
     },
     {
+      name: 'live-fleet',
+      testMatch: /live-fleet.spec.ts/u,
+      dependencies: ['passenger'],
+      use: { ...devices['Desktop Chrome'], baseURL: OPERATOR_URL },
+    },
+    {
       name: 'operator-verify',
       testMatch: /operator.verify.spec.ts/u,
-      dependencies: ['passenger'],
+      dependencies: ['live-fleet'],
       use: { ...devices['Desktop Chrome'], baseURL: OPERATOR_URL },
     },
     {
@@ -95,6 +117,12 @@ export default defineConfig({
       name: 'billing-reconcile',
       testMatch: /billing.reconcile.spec.ts/u,
       dependencies: ['billing-passenger'],
+      use: { ...devices['Desktop Chrome'], baseURL: OPERATOR_URL },
+    },
+    {
+      name: 'theme',
+      testMatch: /theme.spec.ts/u,
+      dependencies: ['billing-reconcile'],
       use: { ...devices['Desktop Chrome'], baseURL: OPERATOR_URL },
     },
   ],

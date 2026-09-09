@@ -1,12 +1,15 @@
 import { expect, test } from '@playwright/test';
 import {
   accounts,
+  chooseFromPicker,
   demoDriverName,
   demoPassengerName,
   departureTime,
   isoDate,
+  isoWeekday,
   runId,
   signIn,
+  useTableView,
 } from './fixtures';
 
 /**
@@ -34,16 +37,21 @@ test.beforeEach(async ({ page }) => {
 test('loads the dashboard summary', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByText('Active Passengers')).toBeVisible();
-  await expect(page.getByText('Today at a glance')).toBeVisible();
+  // The operational row, which a tenant account leads with. These four tiles come from the composed
+  // summary endpoint, and are the first thing that breaks if it or its permission is wrong.
+  // Scoped to the tiles themselves. The same words appear in the attendance panel's empty state,
+  // and a bare text match would assert that an empty state exists rather than that a tile does.
+  for (const tile of ['Buses running', "Today's trips", 'Boarded today']) {
+    await expect(page.locator('vx-metric-card', { hasText: tile })).toBeVisible();
+  }
 
-  // Every counter resolves to a number. A dash would mean the summary request failed and the page
-  // fell back to its empty state. Scoped to the term list, because "Scheduled" is also a trip
-  // status badge elsewhere on the page.
-  const glance = page.getByRole('term');
+  // A real number, not the em dash the tiles fall back to when the request fails.
+  const trips = page.locator('vx-metric-card', { hasText: "Today's trips" });
+  await expect(trips).not.toContainText('—');
 
-  await expect(glance.filter({ hasText: 'Scheduled' })).toBeVisible();
-  await expect(glance.filter({ hasText: 'Boarded' })).toBeVisible();
+  // The people-and-fleet band sits below the operational one for an owner account, which is the
+  // ordering `dashboardFocus` derives from this account's permissions.
+  await expect(page.getByRole('heading', { name: 'People and fleet' })).toBeVisible();
 });
 
 test('creates a passenger', async ({ page }) => {
@@ -133,7 +141,7 @@ test('creates a route and lands on its detail page', async ({ page }) => {
 
 test('adds stops in order', async ({ page }) => {
   await openRoute(page, routeCode);
-  await page.getByRole('tab', { name: /Stops/u }).click();
+  await page.getByRole('tab', { name: /Stops & map/u }).click();
 
   for (const stop of [
     { name: 'Dubai Silicon Oasis', lat: '25.118', lng: '55.377' },
@@ -156,7 +164,11 @@ test('adds stops in order', async ({ page }) => {
 
   // A route is created as a draft and produces no trips until it is in service. It cannot be
   // activated before it has a stop, which is why this happens here rather than at creation.
-  await page.getByRole('button', { name: 'Activate route' }).click();
+  // Activation lives in the header's overflow menu now: the workspace leads with the two actions a
+  // planner uses every day, and putting six buttons across the top makes the one that matters stop
+  // standing out.
+  await page.getByRole('button', { name: 'More route actions' }).click();
+  await page.getByRole('menuitem', { name: 'Activate route' }).click();
   await expect(page.getByText('now in service')).toBeVisible();
 });
 
@@ -173,30 +185,62 @@ test('assigns the passengers to the first stop', async ({ page }) => {
 });
 
 /**
- * The map tab. The polyline needs a configured provider key, so only the stops and the panel are
- * asserted — the line itself is verified by the backend tests against a stub provider, and an E2E
- * run without a Maps key must not fail for it.
+ * The stop timeline, and the fact that choosing on it is answered by the map beside it.
+ *
+ * The polyline needs a configured provider key, so the drawn line itself is not asserted — that is
+ * covered by the backend tests against a stub provider, and an E2E run without a Maps key must not
+ * fail for it. What is asserted is what the phase actually asked for: a numbered sequence, a real
+ * boarding count per stop, and a selection the map panel acknowledges.
  */
-test('renders the route map preview', async ({ page }) => {
+test('renders the stop timeline and links it to the map', async ({ page }) => {
   await openRoute(page, routeCode);
-  await page.getByRole('tab', { name: 'Map' }).click();
+  await page.getByRole('tab', { name: /Stops & map/u }).click();
+
+  await expect(page.getByRole('heading', { name: 'Stop timeline' })).toBeVisible();
+
+  // The sequence, as the operator reads it. Three stops were added, in this order.
+  const stops = page.locator('vexto-route-timeline li');
+  await expect(stops).toHaveCount(3);
+  await expect(stops.first()).toContainText('Dubai Silicon Oasis');
+  await expect(stops.last()).toContainText('Business Bay');
+
+  // The last stop says it is the end of the route rather than leaving it to be inferred.
+  await expect(stops.last()).toContainText('Destination');
+
+  // Both passengers were assigned to stop 1, so it carries a count derived from the assignments the
+  // workspace already holds — not from a request per stop.
+  await expect(stops.first()).toContainText('2 passengers');
 
   await expect(page.getByRole('heading', { name: 'Route map' })).toBeVisible();
-  await expect(page.getByText('Distance')).toBeVisible();
-
-  // 'Driving time' appears only on this panel. 'Stops' is also a tab label, so it would assert
-  // that the tab exists rather than that the preview rendered.
   await expect(page.getByText('Driving time')).toBeVisible();
+
+  // Choosing a stop on the timeline is answered by the map panel. This is the cross-highlight the
+  // phase asked for, asserted through the part of it that does not need a provider key.
+  await stops.first().getByRole('button').first().click();
+  await expect(page.getByRole('status').filter({ hasText: 'Showing' })).toContainText(
+    'Dubai Silicon Oasis',
+  );
 });
 
-test('assigns the driver and vehicle', async ({ page }) => {
+test('assigns the driver and vehicle, seeing capacity before confirming', async ({ page }) => {
   await openRoute(page, routeCode);
-  await page.getByRole('tab', { name: 'Resources' }).click();
+  await page.getByRole('tab', { name: 'Driver & vehicle' }).click();
 
-  await page.getByRole('button', { name: 'Assign crew' }).click();
-  await page.locator('#res-driver').selectOption({ index: 1 });
-  await page.locator('#res-vehicle').selectOption({ index: 1 });
-  await submit(page, 'assign-resources-form');
+  // `.first()` because the empty state offers the same action as the toolbar does — a list with
+  // nothing in it should carry the button that fixes that, so both are correct and both match.
+  await page.getByRole('button', { name: 'Assign crew' }).first().click();
+
+  // Typed into searchable pickers, not chosen from dropdowns. This run created both records, so
+  // naming them is also what stops the roster picking up somebody an earlier run left behind.
+  await chooseFromPicker(page, 'res-driver', driverName);
+  await chooseFromPicker(page, 'res-vehicle', plateNumber);
+
+  // The comparison a dispatcher makes before committing: seats against people. The backend refuses
+  // an impossible pairing anyway; showing it here is what stops them getting that far.
+  await expect(page.getByText('Vehicle capacity')).toBeVisible();
+  await expect(page.getByText('Assigned passengers')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Confirm assignment' }).click();
 
   await expect(page.getByText('Crew assigned to route.')).toBeVisible();
 });
@@ -205,9 +249,11 @@ test('schedules the route and generates a trip for today', async ({ page }) => {
   await openRoute(page, routeCode);
   await page.getByRole('tab', { name: /Schedule/u }).click();
 
-  const weekday = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
+  // The operator's business weekday, matching the date the trips are then generated for. Read
+  // from a different calendar than `isoDate`, these two disagree for four hours every night.
+  const weekday = isoWeekday();
 
-  await page.getByRole('button', { name: 'Add schedule' }).click();
+  await page.getByRole('button', { name: 'Add schedule' }).first().click();
   await page.locator('#sc-day').selectOption(weekday);
   // Earlier than any route the demo seed creates (06:15), and unique to this run. The passenger
   // app shows whichever trip departs first, so a tie leaves it a coin-toss — between a seeded trip,
@@ -216,9 +262,12 @@ test('schedules the route and generates a trip for today', async ({ page }) => {
   await submit(page, 'schedule-form');
   await expect(page.getByText('Schedule added.')).toBeVisible();
 
+  // Generation is the workspace's primary action now, rather than a form at the foot of a tab, so
+  // it is reached from the page header and confirmed in a drawer.
+  await page.getByRole('button', { name: 'Generate trips' }).first().click();
   await page.locator('#g-from').fill(isoDate(0));
   await page.locator('#g-to').fill(isoDate(0));
-  await page.getByRole('button', { name: 'Generate Trips' }).click();
+  await page.getByRole('button', { name: 'Generate trips', exact: true }).last().click();
 
   // The result line, which persists on the page rather than fading like a toast. It also proves
   // the request finished, which the next test depends on: asserting on something that renders
@@ -231,8 +280,29 @@ test('schedules the route and generates a trip for today', async ({ page }) => {
     .toContainText(/Created\s*1\s*trips/u);
 });
 
+/**
+ * The question the route workspace exists to answer: is this route ready to produce trips.
+ *
+ * Asserted once the crew, the schedule and a trip are all in place, because "Ready" is only true
+ * when every gap is closed — which is exactly what makes it worth stating.
+ */
+test('shows the route as ready for trip generation', async ({ page }) => {
+  await openRoute(page, routeCode);
+
+  await expect(page.getByText('Readiness')).toBeVisible();
+  await expect(page.getByText('Ready for trip generation')).toBeVisible();
+
+  // The overview answers who drives it, what they drive and when it next runs — without opening a
+  // single tab, which was the whole complaint about the screen this replaced.
+  await expect(page.getByRole('heading', { name: 'Assigned driver' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Assigned vehicle' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Next trip' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Schedule' })).toBeVisible();
+});
+
 test("finds today's trip by searching for its route code", async ({ page }) => {
   await page.goto('/trips');
+  await useTableView(page);
   await page.getByLabel('Service date').fill(isoDate(0));
 
   // The search box matches the route code, name, driver name or plate — all snapshotted on the
@@ -248,26 +318,31 @@ test("finds today's trip by searching for its route code", async ({ page }) => {
  * The dispatcher exception this phase exists for: driver A is sick, so this one trip runs with
  * somebody else and the route roster is deliberately left alone.
  */
-test('substitutes the crew on the generated trip', async ({ page }) => {
+test('substitutes the crew on the generated trip, through searchable pickers', async ({ page }) => {
   await openTodaysTrip(page, routeCode);
 
-  await page.getByRole('button', { name: 'Change crew' }).click();
-  await expect(page.getByText('Change crew for this trip')).toBeVisible();
+  await page.getByRole('button', { name: 'Change driver / vehicle' }).click();
+  await expect(page.getByText('This trip only')).toBeVisible();
 
-  // The substitute is the seeded driver by name, not whoever happens to be first in the list: it
-  // is the account the driver app signs in as, and this is what puts this run's trip in front of
-  // them.
-  const driverSelect = page.getByLabel('Substitute driver');
-  const driverOption = driverSelect.locator('option', { hasText: demoDriverName });
-  await driverSelect.selectOption((await driverOption.getAttribute('value')) ?? '');
-  await page.getByLabel('Substitute vehicle').selectOption({ index: 1 });
-  await page.getByRole('button', { name: 'Save crew' }).click();
+  // Typed into a server-side type-ahead, not chosen from a dropdown of the first fifty. On a pilot
+  // database with more drivers than the cap this is the difference between finding the substitute
+  // and being told, silently, that they do not exist.
+  //
+  // The substitute is the seeded driver by name, not whoever happens to be first: it is the account
+  // the driver app signs in as, and this is what puts this run's trip in front of them.
+  await chooseFromPicker(page, 'crew-driver', demoDriverName);
+  await chooseFromPicker(page, 'crew-vehicle', plateNumber);
+
+  // Capacity is compared here too, because a substitution is exactly when a smaller bus gets used.
+  await expect(page.getByText('Passengers on this trip')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Confirm change' }).click();
 
   await expect(page.getByText('Crew changed for this trip.')).toBeVisible();
 
   // The route roster is untouched: the substitution applies to this journey only.
   await openRoute(page, routeCode);
-  await page.getByRole('tab', { name: 'Resources' }).click();
+  await page.getByRole('tab', { name: 'Driver & vehicle' }).click();
   await expect(page.locator('vx-status-badge', { hasText: 'Active' }).first()).toBeVisible();
 });
 
@@ -284,6 +359,7 @@ async function openTodaysTrip(
   code: string,
 ): Promise<void> {
   await page.goto('/trips');
+  await useTableView(page);
   await page.getByLabel('Service date').fill(isoDate(0));
   await page.getByLabel('Search trips').fill(code);
 
@@ -301,18 +377,29 @@ async function openTodaysTrip(
 /**
  * Filters a list down to exactly one row before acting on it.
  *
- * The search box is debounced, so filling it and clicking immediately opens the menu of whichever
- * row was already there — a different record, quite possibly one from an earlier run. Waiting for
- * the row count is what makes the click land on the intended row rather than on a race.
+ * Two things have to happen first, and both are real user actions rather than test scaffolding.
+ *
+ * **The list has to be in its table layout.** Cards are the default on every list screen — they are
+ * how an operator recognises a person and acts on them — so a fresh browser profile shows no table
+ * at all, and every `tbody tr` assertion below would look for rows that were never rendered. This
+ * clicks the same Cards/Table switch a person would.
+ *
+ * **The search has to have settled.** The box is debounced, so filling it and clicking immediately
+ * opens the menu of whichever row was already there — a different record, quite possibly one from an
+ * earlier run. Waiting for the row count is what makes the click land on the intended row rather
+ * than on a race.
  */
 async function narrowToSingleRow(
   page: import('@playwright/test').Page,
   searchLabel: string,
   term: string,
 ): Promise<void> {
+  await useTableView(page);
   await page.getByLabel(searchLabel).fill(term);
   await expect(page.locator('tbody tr')).toHaveCount(1);
 }
+
+
 
 /**
  * Submits an open drawer.
@@ -344,11 +431,9 @@ async function assignPassenger(
   page: import('@playwright/test').Page,
   name: string,
 ): Promise<void> {
-  await page.getByRole('button', { name: 'Assign passenger' }).click();
+  await page.getByRole('button', { name: 'Assign passenger' }).first().click();
 
-  // The option label carries the mobile number too, so it is matched by text and selected by value.
-  const option = page.locator('#a-passenger option', { hasText: name });
-  await page.locator('#a-passenger').selectOption((await option.getAttribute('value')) ?? '');
+  await chooseFromPicker(page, 'a-passenger', name);
   await page.locator('#a-stop').selectOption({ index: 1 });
   await submit(page, 'assign-passenger-form');
 

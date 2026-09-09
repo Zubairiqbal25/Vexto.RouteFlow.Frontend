@@ -178,3 +178,125 @@ export function formatMoney(
 
   return currency ? `${currency} ${formatted}` : formatted;
 }
+
+/**
+ * `Today`, `Tomorrow`, `Yesterday`, otherwise `Mon 14 Sep`.
+ *
+ * Operational screens ask "when is the next bus", and the honest answer to that is almost never a
+ * calendar date: a driver looking at 06:00 needs to know whether that is this morning or the next
+ * one. Comparison is done on the Gulf calendar day, not on UTC, because a 20:00 UTC departure is
+ * already tomorrow in Dubai and calling it "today" would be wrong by a day for the evening shift.
+ */
+export function formatDayLabel(value: string | Date | null | undefined, now = new Date()): string {
+  const date = toDate(value);
+
+  if (!date) {
+    return '—';
+  }
+
+  const day = localDayNumber(date);
+  const today = localDayNumber(now);
+
+  if (day === today) {
+    return 'Today';
+  }
+
+  if (day === today + 1) {
+    return 'Tomorrow';
+  }
+
+  if (day === today - 1) {
+    return 'Yesterday';
+  }
+
+  return new Intl.DateTimeFormat(LOCALE, {
+    timeZone: TIME_ZONE,
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+  }).format(date);
+}
+
+/** `Tomorrow · 06:00`. The one line a "next trip" card leads with. */
+export function formatDayTime(value: string | Date | null | undefined, now = new Date()): string {
+  const date = toDate(value);
+
+  return date ? `${formatDayLabel(date, now)} · ${formatTime(date)}` : '—';
+}
+
+/**
+ * Whole minutes from now until a timestamp; negative once it has passed.
+ *
+ * Used for countdowns ("starts in 22 min"). Callers must still decide whether a countdown is
+ * honest — a departure time is a plan, an ETA is a measurement, and only one of them may be
+ * presented as where the bus actually is.
+ */
+export function minutesUntil(value: string | Date | null | undefined, now = new Date()): number {
+  const date = toDate(value);
+
+  return date ? Math.round((date.getTime() - now.getTime()) / 60_000) : Number.POSITIVE_INFINITY;
+}
+
+/** `1 h 12 m`, `45 min`. For a completed trip's duration, where seconds are noise. */
+export function formatDuration(
+  from: string | Date | null | undefined,
+  to: string | Date | null | undefined,
+): string {
+  const start = toDate(from);
+  const end = toDate(to);
+
+  if (!start || !end) {
+    return '—';
+  }
+
+  const minutes = Math.max(0, Math.round((end.getTime() - start.getTime()) / 60_000));
+
+  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} m`;
+}
+
+/** The Gulf calendar day a timestamp falls on, as a comparable integer. */
+function localDayNumber(date: Date): number {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+
+  return Math.round(Date.parse(`${parts}T00:00:00Z`) / 86_400_000);
+}
+
+/**
+ * A service date, in the operator's own business day, as `YYYY-MM-DD`.
+ *
+ * **Not `toISOString().slice(0, 10)`.** That is the UTC date, and Vexto operates in the Gulf, four
+ * hours ahead: between midnight and 04:00 local it is still *yesterday* in UTC. Every screen that
+ * asked for "today" that way — the dispatcher's dashboard, the driver's trip list, the passenger's
+ * next ride — showed the previous day's operation to anybody working the early shift, which is
+ * precisely the shift a transport operator runs.
+ *
+ * `en-CA` is used because its short date format is already `YYYY-MM-DD`, which is what the API's
+ * `DateOnly` parameters expect.
+ */
+export function serviceDate(offsetDays = 0, now = new Date()): string {
+  const date = new Date(now.getTime() + offsetDays * 86_400_000);
+
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+/**
+ * The weekday name of a business day, matching the day names the schedule API uses.
+ *
+ * Paired with `serviceDate` deliberately: asking for the weekday in one calendar and the date in
+ * another is how a schedule gets added for Wednesday and trips get generated for Tuesday.
+ */
+export function serviceWeekday(offsetDays = 0, now = new Date()): string {
+  const date = new Date(now.getTime() + offsetDays * 86_400_000);
+
+  return new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, weekday: 'long' }).format(date);
+}

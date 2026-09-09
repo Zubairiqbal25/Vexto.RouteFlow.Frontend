@@ -35,6 +35,15 @@ export type AgreementStatus =
   | 'Cancelled';
 export type AbsenceStatus = 'Active' | 'Cancelled';
 
+/**
+ * Whether a passenger may travel, as far as money is concerned.
+ *
+ * Mirrors `PassengerTransportAccess`. Note what it is not: this is transport access, not account
+ * access — a blocked passenger still signs in, reads their invoice and pays it, because that is the
+ * only place they can settle the thing that blocked them.
+ */
+export type PassengerAccessState = 'Active' | 'GracePeriod' | 'PaymentOverdue' | 'Blocked';
+
 const TONES: Readonly<Record<string, StatusTone>> = {
   // Healthy, in-service, finished-as-intended.
   Active: 'success',
@@ -69,6 +78,12 @@ const TONES: Readonly<Record<string, StatusTone>> = {
   Skipped: 'neutral',
   NotStarted: 'neutral',
   Completed: 'primary',
+
+  // Transport access. GracePeriod and PaymentOverdue are both "somebody owes money and is still
+  // travelling", which is a warning; Blocked is the only one that changes what happens at the kerb.
+  GracePeriod: 'warning',
+  PaymentOverdue: 'warning',
+  Blocked: 'danger',
 };
 
 /** The tone a status is drawn in. Unknown values fall back to neutral rather than disappearing. */
@@ -83,6 +98,8 @@ const LABELS: Readonly<Record<string, string>> = {
   NoShow: 'No show',
   DroppedOff: 'Dropped off',
   NotStarted: 'Not started',
+  GracePeriod: 'In grace period',
+  PaymentOverdue: 'Payment overdue',
 };
 
 export function statusLabel(status: string | null | undefined): string {
@@ -91,6 +108,17 @@ export function statusLabel(status: string | null | undefined): string {
   }
 
   return LABELS[status] ?? status.replace(/([a-z0-9])([A-Z])/gu, '$1 $2');
+}
+
+/**
+ * True when the passenger is not to be carried.
+ *
+ * One function rather than `state === 'Blocked'` scattered through the apps: the driver's screen,
+ * the operator's manifest and the passenger list all have to agree, and three literals eventually
+ * do not.
+ */
+export function isAccessBlocked(state: string | null | undefined): boolean {
+  return state === 'Blocked';
 }
 
 /** True while a trip is something a dispatcher needs to watch rather than file away. */

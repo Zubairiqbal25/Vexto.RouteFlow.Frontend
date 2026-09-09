@@ -11,6 +11,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { VehiclesApi, VextoApiError } from '@vexto/api-client';
 import type { Emirate, VehicleResponse, VehicleType } from '@vexto/models';
 import { ToastService, VxField, VxFormSection, VxModal } from '@vexto/ui';
+import { unsavedChangesGuard } from '../../shared/unsaved-changes';
 import { humanizeEnum } from '@vexto/utilities';
 
 const VEHICLE_TYPES: readonly NonNullable<VehicleType>[] = ['Bus', 'MiniBus', 'Van', 'Car', 'Other'];
@@ -40,7 +41,7 @@ const EMIRATES: readonly NonNullable<Emirate>[] = [
       [dismissable]="!busy()"
       [title]="vehicle() ? 'Edit vehicle' : 'Add vehicle'"
       description="Vehicles are assigned to routes and carry passengers on trips."
-      (closed)="dismissed.emit()"
+      (closed)="tryDismiss()"
     >
       <form [formGroup]="form" (ngSubmit)="submit()" id="vehicle-form">
         @if (formError(); as message) {
@@ -134,7 +135,7 @@ const EMIRATES: readonly NonNullable<Emirate>[] = [
         footer
         class="vx-btn vx-btn-secondary"
         [disabled]="busy()"
-        (click)="dismissed.emit()"
+        (click)="tryDismiss()"
       >
         Cancel
       </button>
@@ -158,6 +159,20 @@ export class VehicleForm {
   readonly open = input(false);
   readonly vehicle = input<VehicleResponse | null>(null);
   readonly dismissed = output<void>();
+
+  private readonly confirmDiscard = unsavedChangesGuard();
+
+  /**
+   * Closes the form, asking first when there is unsaved work in it.
+   *
+   * Every way out of this form routes through here — the close button, the backdrop and Escape all
+   * raise the same event — so there is no path that quietly discards what somebody typed.
+   */
+  protected async tryDismiss(): Promise<void> {
+    if (await this.confirmDiscard(this.form)) {
+      this.dismissed.emit();
+    }
+  }
   readonly saved = output<VehicleResponse>();
 
   protected readonly vehicleTypes = VEHICLE_TYPES;

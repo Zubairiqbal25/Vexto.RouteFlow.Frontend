@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  InjectionToken,
   computed,
   inject,
   input,
@@ -19,6 +20,31 @@ import {
   VxSkeleton,
 } from '@vexto/ui';
 import { formatRelative } from '@vexto/utilities';
+
+/** The kinds of record a notification can point at. */
+export type VxNotificationTarget = 'trip' | 'invoice';
+
+/**
+ * Turns a record id into a URL **in the application that is asking**.
+ *
+ * The bell is shared by all three apps and their route tables are genuinely different: a trip is
+ * `/trips/{id}` for an operator and for a driver, but a passenger app has no per-trip route at all,
+ * and an invoice is `/billing/invoices/{id}` in the portal and `/payments/{id}` on a phone. The bell
+ * used to hardcode the operator's shapes, so a passenger tapping an invoice notification fell
+ * through the wildcard route and landed silently on Home — a dead link that looked like a working
+ * one, which is the exact failure the null-link rule exists to prevent.
+ *
+ * Returning `null` is a first-class answer: the notification stays readable and simply is not
+ * clickable. Each application provides this at bootstrap.
+ */
+export type VxNotificationLinkResolver = (
+  target: VxNotificationTarget,
+  id: string,
+) => string | null;
+
+export const VX_NOTIFICATION_LINKS = new InjectionToken<VxNotificationLinkResolver>(
+  'VX_NOTIFICATION_LINKS',
+);
 
 /** The three things Vexto notifies about, derived from the backend's own type names. */
 type NotificationCategory = 'trips' | 'payments' | 'system';
@@ -232,6 +258,14 @@ export class VxNotificationBell {
 
   private readonly api = inject(NotificationsApi);
   private readonly router = inject(Router);
+
+  /**
+   * How this application turns a record id into one of its own URLs.
+   *
+   * Optional so a host that provides nothing simply gets unclickable notifications rather than
+   * links into a route table that does not exist.
+   */
+  private readonly links = inject(VX_NOTIFICATION_LINKS, { optional: true });
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly relative = formatRelative;
@@ -331,21 +365,39 @@ export class VxNotificationBell {
    * published today, so only those two navigate.
    */
   protected linkFor(item: NotificationItem): string | null {
-    const data = this.dataOf(item);
-
-    if (typeof data['tripId'] === 'string') {
-      return `/trips/${data['tripId']}`;
-    }
-
-    if (typeof data['invoiceId'] === 'string') {
-      return `/billing/invoices/${data['invoiceId']}`;
-    }
-
-    return null;
+    return this.targetOf(item)?.url ?? null;
   }
 
   protected linkLabel(item: NotificationItem): string {
-    return this.linkFor(item)?.startsWith('/trips') ? 'the trip' : 'the invoice';
+    return this.targetOf(item)?.target === 'trip' ? 'the trip' : 'the invoice';
+  }
+
+  /**
+   * What this notification points at, resolved through the host application.
+   *
+   * Only `tripId` and `invoiceId` are published today, so only those two are read. A payload with
+   * neither — or a host that cannot render that kind of record — produces no target at all.
+   */
+  private targetOf(item: NotificationItem): { target: VxNotificationTarget; url: string } | null {
+    const data = this.dataOf(item);
+
+    if (!this.links) {
+      return null;
+    }
+
+    if (typeof data['tripId'] === 'string') {
+      const url = this.links('trip', data['tripId']);
+
+      return url ? { target: 'trip', url } : null;
+    }
+
+    if (typeof data['invoiceId'] === 'string') {
+      const url = this.links('invoice', data['invoiceId']);
+
+      return url ? { target: 'invoice', url } : null;
+    }
+
+    return null;
   }
 
   /**

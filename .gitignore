@@ -4,3 +4,4 @@ dist/
 .vs/
 test-results/
 playwright-report/
+visual-review/

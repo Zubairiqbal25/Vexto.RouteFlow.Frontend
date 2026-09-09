@@ -34,6 +34,15 @@
   --vexto-primary-contrast: #ffffff;
   --vexto-primary-soft: var(--vexto-primary-50);
 
+  /* The Vexto mark on a permanently-dark surface: the nav rail, the mobile app header.
+
+     Deliberately a fixed value rather than a step of the scale above, and deliberately not
+     redefined in the dark block. Those surfaces are dark in *both* themes, so a mark that tracked
+     `--vexto-primary` would change colour when the user toggles the theme while the rail it sits
+     on did not. `--vexto-primary` itself is muddy on dark navy, which is why this is the lifted
+     step rather than the brand value. See docs/design-system.md §9. */
+  --vexto-brand-on-dark: #2eb3a6;
+
   --vexto-accent: #4f46e5;
   --vexto-accent-soft: #eef2ff;
 
@@ -298,5 +307,29 @@
   .vexto-theme-switching *::before,
   .vexto-theme-switching *::after {
     transition: none !important;
+  }
+}
+
+/* -----------------------------------------------------------------------------------------------
+ * The rest of reduced motion.
+ *
+ * Collapsing the transition tokens above covers every component that animates through them, which
+ * is most of the design system. It does not cover Tailwind's own utilities — `transition-[width]`
+ * on a progress bar, `duration-500` on an attendance bar filling up — because those write their
+ * durations directly. A passenger who asked their operating system for less movement should not
+ * have a bar slide across the screen because the class came from a different place.
+ *
+ * `0.01ms` rather than `0`: a duration of exactly zero suppresses the `transitionend` event in some
+ * browsers, and code that waits for one then waits forever. Scroll behaviour is included because a
+ * smooth-scrolled page is the same complaint at a larger scale.
+ * --------------------------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
   }
 }

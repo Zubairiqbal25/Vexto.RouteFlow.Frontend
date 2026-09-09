@@ -20,6 +20,7 @@ import { listViewPreference } from '../../shared/list-view';
 import { PagedList } from '../../shared/paged-list';
 import { RouteCard } from './route-card';
 import { RouteForm } from './route-form';
+import { openFormOnNewParam } from '../../shared/new-record';
 
 interface RouteFilters extends Record<string, unknown> {
   search: string;
@@ -249,6 +250,11 @@ export class RoutesPage {
 
   protected startTime(route: RouteResponse): string {
     return route.defaultStartTime ? route.defaultStartTime.slice(0, 5) : '—';
+  }
+
+  constructor() {
+    // Lets the command palette’s “Create…” quick action land here with the form already open.
+    openFormOnNewParam(() => this.add());
   }
 
   protected add(): void {

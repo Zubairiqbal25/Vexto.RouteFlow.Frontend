@@ -26,7 +26,9 @@ import {
   VxSkeleton,
   VxStatusBadge,
 } from '@vexto/ui';
+import { type VxMapMarker, VxMap } from '@vexto/maps';
 import { formatTime } from '@vexto/utilities';
+import { isNotToBeCarried, manifestGroups, nextPassenger } from './manifest-order';
 import { LocationPublisher } from './location-publisher.service';
 
 /**
@@ -41,13 +43,56 @@ import { LocationPublisher } from './location-publisher.service';
 @Component({
   selector: 'vexto-driver-trip-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, VxAvatar, VxErrorState, VxIcon, VxProgressRing, VxSkeleton, VxStatusBadge],
+  imports: [
+    RouterLink,
+    VxAvatar,
+    VxErrorState,
+    VxIcon,
+    VxMap,
+    VxProgressRing,
+    VxSkeleton,
+    VxStatusBadge,
+  ],
   template: `
     <div class="p-4">
       <a routerLink="/trips" class="mb-3 inline-flex items-center gap-1.5 text-body text-ink-muted">
         <vx-icon name="arrow-left" [size]="17" />
         All trips
       </a>
+
+      @if (detail()?.trip?.status === 'Started' && passengers().length > 0) {
+        <!--
+          How much of the route is done, kept on screen while the manifest scrolls.
+
+          Sticky rather than pinned to the bottom: a bottom bar on a tablet in a dashboard mount
+          covers the two buttons the driver is reaching for. At the top it answers “am I nearly
+          finished” without ever being in the way of recording a boarding.
+        -->
+        <div
+          class="sticky top-0 z-20 -mx-4 mb-3 border-b border-line-subtle px-4 py-2.5"
+          style="background: var(--vexto-surface)"
+          role="status"
+        >
+          <div class="flex items-baseline justify-between gap-3">
+            <p class="text-body font-semibold tabular-nums text-ink">
+              {{ pickedUp() }} / {{ passengers().length }} picked up
+            </p>
+            <p class="text-meta text-ink-muted">{{ remaining() }} remaining</p>
+          </div>
+          <div
+            class="mt-2 h-2 w-full overflow-hidden rounded-full"
+            style="background: var(--vexto-surface-sunken)"
+            role="img"
+            [attr.aria-label]="pickedUp() + ' of ' + passengers().length + ' picked up'"
+          >
+            <span
+              class="block h-full transition-[width] duration-500 ease-out"
+              style="background: var(--vexto-success)"
+              [style.width.%]="progressPercent()"
+            ></span>
+          </div>
+        </div>
+      }
 
       @if (error(); as message) {
         <vx-error-state title="We could not load this trip" [message]="message" (retry)="load()" />
@@ -56,6 +101,20 @@ import { LocationPublisher } from './location-publisher.service';
       } @else if (detail(); as loaded) {
         <div class="grid gap-4 lg:grid-cols-[1fr_26rem] lg:items-start">
         <div class="flex flex-col gap-4">
+        @if (loaded.trip.status === 'Started' && mapMarkers().length > 0) {
+          <!--
+            Where the bus is and where it is going next.
+
+            Two pins and nothing else: the driver already has turn-by-turn navigation on the same
+            device and trusts it, so this is orientation, not guidance. It is drawn from the fix the
+            device just gave us rather than from the server — asking Vexto where this driver is
+            would be slower and less accurate than asking the phone in their hand.
+          -->
+          <section class="h-56 w-full overflow-hidden rounded-2xl sm:h-72 lg:h-80">
+            <vx-map [markers]="mapMarkers()" [center]="mapCentre()" [zoom]="15" />
+          </section>
+        }
+
         <section class="vx-card p-5">
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
@@ -194,13 +253,13 @@ import { LocationPublisher } from './location-publisher.service';
           -->
           <section
             class="vx-card overflow-hidden"
-            style="border-color: var(--vexto-primary)"
+            [style.border-color]="isBlocked(next) ? 'var(--vexto-danger)' : 'var(--vexto-primary)'"
             aria-labelledby="next-pickup-heading"
           >
             <p
               id="next-pickup-heading"
               class="px-5 py-2.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-white"
-              style="background: var(--vexto-primary)"
+              [style.background]="isBlocked(next) ? 'var(--vexto-danger)' : 'var(--vexto-primary)'"
             >
               Next pickup
             </p>
@@ -217,13 +276,28 @@ import { LocationPublisher } from './location-publisher.service';
                 <p class="mt-1 truncate text-body text-ink-secondary">
                   {{ next.stop ?? 'No stop recorded' }}
                 </p>
-                <p
-                  class="mt-2 inline-flex items-center gap-1.5 text-meta font-medium"
-                  style="color: var(--vexto-success-text)"
-                >
-                  <vx-icon name="check-circle" [size]="15" />
-                  Access allowed
-                </p>
+                <!--
+                  Operational access only. Whether this person may travel is a yes or a no; what
+                  they owe, to whom and since when is between them and the operator, and putting an
+                  amount on a screen a driver holds up at the kerb would be broadcasting it.
+                -->
+                @if (isBlocked(next)) {
+                  <p
+                    class="mt-2 inline-flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide"
+                    style="color: var(--vexto-danger-text)"
+                  >
+                    <vx-icon name="ban" [size]="15" />
+                    Payment blocked
+                  </p>
+                } @else {
+                  <p
+                    class="mt-2 inline-flex items-center gap-1.5 text-meta font-medium"
+                    style="color: var(--vexto-success-text)"
+                  >
+                    <vx-icon name="check-circle" [size]="15" />
+                    Access allowed
+                  </p>
+                }
               </div>
             </div>
 
@@ -242,18 +316,34 @@ import { LocationPublisher } from './location-publisher.service';
             }
 
             @if (canRecord()) {
-              <div class="grid grid-cols-2 gap-3 p-5">
-                <button type="button" class="vx-btn vx-btn-primary vx-btn-touch" (click)="board(next)">
-                  Boarded
-                </button>
-                <button
-                  type="button"
-                  class="vx-btn vx-btn-secondary vx-btn-touch"
-                  (click)="noShow(next)"
-                >
-                  No Show
-                </button>
-              </div>
+              @if (isBlocked(next)) {
+                <div class="p-5">
+                  <p
+                    class="rounded-xl px-4 py-3 text-body font-medium"
+                    style="background: var(--vexto-danger-soft); color: var(--vexto-danger-text)"
+                    role="status"
+                  >
+                    This passenger cannot travel today. Do not wait — carry on to the next stop.
+                  </p>
+                </div>
+              } @else {
+                <div class="grid grid-cols-2 gap-3 p-5">
+                  <button
+                    type="button"
+                    class="vx-btn vx-btn-primary vx-btn-touch"
+                    (click)="board(next)"
+                  >
+                    Boarded
+                  </button>
+                  <button
+                    type="button"
+                    class="vx-btn vx-btn-secondary vx-btn-touch"
+                    (click)="noShow(next)"
+                  >
+                    No Show
+                  </button>
+                </div>
+              }
             }
           </section>
         }
@@ -371,39 +461,15 @@ export class DriverTripPage {
   );
 
   /**
-   * The person the driver is going to next: the first still expected, in route order.
+   * The manifest, banded into what is still to do and what is settled, and the person next.
    *
-   * Blocked passengers are skipped for this slot — the driver is not stopping for them — but they
-   * remain on the manifest below, marked, so the driver knows why the bus is not waiting.
+   * The rules are in `manifest-order.ts` as pure functions with their own tests — the ordering is
+   * the part of this screen most worth getting right, and the part least worth verifying by
+   * looking at it.
    */
-  /**
-   * The manifest, split into what is still to do and what is handled.
-   *
-   * A driver working a route reads the top of the list twenty times and the bottom once. Keeping
-   * boarded and no-show passengers in sequence order among the people still waiting means the next
-   * pickup drifts further down the screen with every stop — which is exactly backwards.
-   *
-   * Blocked passengers stay in the "to do" group rather than being hidden: the driver still arrives
-   * at that stop, and needs to know why they are not waiting for anybody.
-   */
-  protected readonly manifestGroups = computed(() => {
-    const passengers = this.passengers();
+  protected readonly manifestGroups = computed(() => manifestGroups(this.passengers()));
 
-    const outstanding = passengers.filter((passenger) => passenger.status === 'Expected');
-    const handled = passengers.filter((passenger) => passenger.status !== 'Expected');
-
-    return [
-      { key: 'outstanding', label: 'Still to pick up', passengers: outstanding },
-      { key: 'handled', label: 'Handled', passengers: handled },
-    ].filter((group) => group.passengers.length > 0);
-  });
-
-  protected readonly nextPassenger = computed(
-    () =>
-      this.passengers().find(
-        (passenger) => passenger.status === 'Expected' && passenger.accessState !== 'Blocked',
-      ) ?? null,
-  );
+  protected readonly nextPassenger = computed(() => nextPassenger(this.passengers()));
 
   /**
    * Where this passenger's photo comes from.
@@ -416,6 +482,63 @@ export class DriverTripPage {
   protected passengerPhotoPath(passenger: DriverManifestPassenger): string {
     return `/api/v1/driver/me/trips/${this.tripId()}/passengers/${passenger.passengerId}/photo`;
   }
+
+  /**
+   * The bus and its next stop, as pins.
+   *
+   * Only ever these two. Drawing every remaining stop would turn the map into a plan of the route,
+   * which is the dispatcher's question. The driver's is only "where am I, and where next".
+   */
+  protected readonly mapMarkers = computed<VxMapMarker[]>(() => {
+    const markers: VxMapMarker[] = [];
+    const stop = this.nextStop();
+    const me = this.publisher.position();
+
+    if (stop && stop.latitude !== null && stop.longitude !== null) {
+      markers.push({
+        id: 'next-stop',
+        lat: Number(stop.latitude),
+        lng: Number(stop.longitude),
+        label: stop.name ?? 'Next stop',
+        tone: 'primary',
+      });
+    }
+
+    if (me) {
+      markers.push({
+        id: 'bus',
+        lat: me.lat,
+        lng: me.lng,
+        label: 'Your bus',
+        tone: 'success',
+        heading: me.heading,
+      });
+    }
+
+    return markers;
+  });
+
+  /** Centred on the bus while it is reporting, and on the destination before the first fix. */
+  protected readonly mapCentre = computed(() => {
+    const me = this.publisher.position();
+
+    if (me) {
+      return { lat: me.lat, lng: me.lng };
+    }
+
+    const stop = this.mapMarkers()[0];
+
+    return stop ? { lat: stop.lat, lng: stop.lng } : null;
+  });
+
+  /** People still to deal with. The number a driver counts down, not the one they count up. */
+  protected readonly remaining = computed(() => this.passengers().length - this.pickedUp());
+
+  protected readonly progressPercent = computed(() => {
+    const total = this.passengers().length;
+
+    return total === 0 ? 0 : (this.pickedUp() / total) * 100;
+  });
 
   protected readonly nextStop = signal<DriverNextStopDetail | null>(null);
   protected readonly nextStopLoaded = signal(false);
@@ -643,6 +766,6 @@ export class DriverTripPage {
    * driving them.
    */
   protected isBlocked(passenger: DriverManifestPassenger): boolean {
-    return passenger.accessState === 'Blocked';
+    return isNotToBeCarried(passenger);
   }
 }

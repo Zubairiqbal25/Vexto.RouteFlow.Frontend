@@ -1,30 +1,20 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  effect,
-  inject,
-  input,
-  output,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RoutesApi, VextoApiError } from '@vexto/api-client';
 import type { ApiDayOfWeek, RouteSchedule } from '@vexto/models';
-import { CanDirective, VextoPermissions } from '@vexto/permissions';
+import { CanDirective, PermissionService, VextoPermissions } from '@vexto/permissions';
 import {
   ConfirmService,
   ToastService,
   VxEmptyState,
-  VxErrorState,
   VxField,
   VxFormSection,
   VxIcon,
   VxModal,
   VxSectionCard,
-  VxSkeletonTable,
-  VxStatusBadge,
 } from '@vexto/ui';
-import { formatDate } from '@vexto/utilities';
+import { formatDate, serviceDate } from '@vexto/utilities';
+import { RouteWorkspaceStore } from './route-workspace.store';
 
 /** UAE working week order: Monday to Friday first, then the weekend. */
 const DAYS: readonly ApiDayOfWeek[] = [
@@ -38,11 +28,14 @@ const DAYS: readonly ApiDayOfWeek[] = [
 ];
 
 /**
- * The recurring pattern a route runs to, and the button that turns it into real trips.
+ * The recurring pattern a route runs to.
  *
- * Trip generation is explicit rather than automatic: a dispatcher chooses the window, sees how many
- * trips were created and how many already existed, and nothing appears in the operation without
- * someone asking for it.
+ * Cards rather than table rows: a weekly schedule is at most seven short facts, and a table of
+ * seven rows and five columns spends four hundred pixels of vertical space saying "Monday 06:00".
+ * The chips read as a week, which is the shape of the thing.
+ *
+ * Trip generation is no longer buried at the bottom of this tab — it is the route workspace's
+ * primary action, because it is the one thing that turns all this configuration into a journey.
  */
 @Component({
   selector: 'vexto-route-schedule-tab',
@@ -51,20 +44,16 @@ const DAYS: readonly ApiDayOfWeek[] = [
     CanDirective,
     ReactiveFormsModule,
     VxEmptyState,
-    VxErrorState,
     VxField,
     VxFormSection,
     VxIcon,
     VxModal,
     VxSectionCard,
-    VxSkeletonTable,
-    VxStatusBadge,
   ],
   template: `
     <vx-section-card
       title="Weekly schedule"
-      description="The days and times this route departs."
-      [padded]="false"
+      description="The days and times this route departs. Trips are generated from these."
     >
       <button
         *vxCan="manage"
@@ -77,100 +66,56 @@ const DAYS: readonly ApiDayOfWeek[] = [
         Add schedule
       </button>
 
-      @if (loading()) {
-        <vx-skeleton-table [columns]="4" [rows]="3" />
-      } @else if (error()) {
-        <vx-error-state title="We could not load the schedule" [message]="error()!" (retry)="load()" />
-      } @else if (schedules().length === 0) {
+      @if (schedules().length === 0) {
         <vx-empty-state
           icon="calendar"
           title="No schedule yet"
-          description="Add the days this route runs before generating trips."
+          description="Add the days this route runs. Without a schedule there is nothing to generate trips from."
+          [actionLabel]="canManage() ? 'Add schedule' : null"
+          (action)="openForm()"
         />
       } @else {
-        <div class="vx-table-scroll vx-scroll">
-          <table class="vx-table">
-            <thead>
-              <tr>
-                <th scope="col">Day</th>
-                <th scope="col">Departs</th>
-                <th scope="col">Effective</th>
-                <th scope="col">Status</th>
-                <th scope="col"><span class="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (schedule of schedules(); track schedule.id) {
-                <tr>
-                  <td class="vx-cell-strong">{{ schedule.dayOfWeek }}</td>
-                  <td>{{ schedule.startTime.slice(0, 5) }}</td>
-                  <td>
-                    {{ date(schedule.effectiveFrom) }}
-                    @if (schedule.effectiveTo) {
-                      <span class="text-ink-muted"> → {{ date(schedule.effectiveTo) }}</span>
-                    }
-                  </td>
-                  <td>
-                    <vx-status-badge
-                      [tone]="schedule.isActive ? 'success' : 'neutral'"
-                      [label]="schedule.isActive ? 'Active' : 'Inactive'"
-                    />
-                  </td>
-                  <td class="text-end">
-                    <button
-                      *vxCan="manage"
-                      type="button"
-                      class="vx-btn vx-btn-ghost vx-btn-sm vx-btn-icon"
-                      [attr.aria-label]="'Remove ' + schedule.dayOfWeek + ' schedule'"
-                      (click)="remove(schedule)"
-                    >
-                      <vx-icon name="trash" [size]="16" />
-                    </button>
-                  </td>
-                </tr>
+        <div class="flex flex-wrap gap-3">
+          @for (schedule of schedules(); track schedule.id) {
+            <div
+              class="vx-card flex min-w-[9.5rem] flex-col gap-1 p-3.5"
+              [class.opacity-60]="!schedule.isActive"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="vx-section-label">{{ schedule.dayOfWeek.slice(0, 3) }}</p>
+                  <p class="mt-0.5 text-xl font-semibold tabular-nums tracking-tight text-ink">
+                    {{ schedule.startTime.slice(0, 5) }}
+                  </p>
+                </div>
+                @if (canManage()) {
+                  <button
+                    type="button"
+                    class="vx-btn vx-btn-ghost vx-btn-sm vx-btn-icon"
+                    [attr.aria-label]="'Remove the ' + schedule.dayOfWeek + ' departure'"
+                    (click)="remove(schedule)"
+                  >
+                    <vx-icon name="trash" [size]="15" />
+                  </button>
+                }
+              </div>
+
+              <p class="text-meta text-ink-muted">
+                @if (schedule.effectiveTo) {
+                  {{ date(schedule.effectiveFrom) }} → {{ date(schedule.effectiveTo) }}
+                } @else {
+                  From {{ date(schedule.effectiveFrom) }}
+                }
+              </p>
+
+              @if (!schedule.isActive) {
+                <p class="text-meta font-medium" style="color: var(--vexto-text-muted)">Inactive</p>
               }
-            </tbody>
-          </table>
+            </div>
+          }
         </div>
       }
     </vx-section-card>
-
-    <div *vxCan="generate" class="mt-6">
-      <vx-section-card
-        title="Generate trips"
-        description="Creates trips from this schedule for a date range. Dates that already have a trip are skipped."
-      >
-        <form class="flex flex-wrap items-end gap-4" [formGroup]="generateForm" (ngSubmit)="run()">
-          <vx-field label="From" for="g-from">
-            <input id="g-from" type="date" class="vx-input" formControlName="fromDate" />
-          </vx-field>
-          <vx-field label="To" for="g-to">
-            <input id="g-to" type="date" class="vx-input" formControlName="toDate" />
-          </vx-field>
-          <!--
-            Wired to (click) as well as the form's (ngSubmit). Clicking a submit button in this app
-            does not raise the form's submit event — the same reason every drawer's save button is
-            wired directly — so relying on implicit submission alone leaves the button inert.
-          -->
-          <button
-            type="submit"
-            class="vx-btn vx-btn-primary"
-            [disabled]="generating()"
-            (click)="run()"
-          >
-            <vx-icon name="trips" [size]="16" />
-            {{ generating() ? 'Generating…' : 'Generate Trips' }}
-          </button>
-        </form>
-
-        @if (generateResult(); as result) {
-          <p class="mt-4 text-body text-ink-secondary" role="status">
-            Created <span class="font-semibold text-ink">{{ result.created }}</span> trips, skipped
-            <span class="font-semibold text-ink">{{ result.skipped }}</span> that already existed.
-          </p>
-        }
-      </vx-section-card>
-    </div>
 
     <vx-modal
       [open]="formOpen()"
@@ -249,64 +194,28 @@ export class RouteScheduleTab {
   private readonly api = inject(RoutesApi);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
-  private readonly builder = inject(FormBuilder);
-
-  readonly routeId = input.required<string>();
-  readonly changed = output<void>();
+  private readonly permissions = inject(PermissionService);
+  private readonly store = inject(RouteWorkspaceStore);
 
   protected readonly manage = VextoPermissions.Routes.Manage;
-  protected readonly generate = VextoPermissions.Trips.Manage;
   protected readonly days = DAYS;
   protected readonly date = formatDate;
 
-  protected readonly schedules = signal<RouteSchedule[]>([]);
-  protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
+  protected readonly schedules = this.store.schedules;
+  protected readonly canManage = computed(() =>
+    this.permissions.has(VextoPermissions.Routes.Manage),
+  );
 
   protected readonly formOpen = signal(false);
   protected readonly saving = signal(false);
   protected readonly formError = signal<string | null>(null);
 
-  protected readonly generating = signal(false);
-  protected readonly generateResult = signal<{ created: number; skipped: number } | null>(null);
-
-  protected readonly form = this.builder.nonNullable.group({
+  protected readonly form = inject(FormBuilder).nonNullable.group({
     dayOfWeek: ['Monday', [Validators.required]],
     startTime: ['06:15', [Validators.required]],
     effectiveFrom: [isoDate(0), [Validators.required]],
     effectiveTo: [''],
   });
-
-  protected readonly generateForm = this.builder.nonNullable.group({
-    fromDate: [isoDate(0), [Validators.required]],
-    // A fortnight is a sensible default: long enough to be useful, short enough to review.
-    toDate: [isoDate(14), [Validators.required]],
-  });
-
-  constructor() {
-    effect(() => {
-      this.routeId();
-      this.load();
-    });
-  }
-
-  protected load(): void {
-    this.loading.set(true);
-    this.error.set(null);
-
-    this.api.schedules(this.routeId()).subscribe({
-      next: (schedules) => {
-        this.schedules.set(schedules);
-        this.loading.set(false);
-      },
-      error: (error: unknown) => {
-        this.loading.set(false);
-        this.error.set(
-          error instanceof VextoApiError ? error.message : 'We could not load the schedule.',
-        );
-      },
-    });
-  }
 
   protected openForm(): void {
     this.formError.set(null);
@@ -343,8 +252,7 @@ export class RouteScheduleTab {
           this.saving.set(false);
           this.formOpen.set(false);
           this.toast.success('Schedule added.');
-          this.load();
-          this.changed.emit();
+          this.afterChange();
         },
         error: (error: unknown) => {
           this.saving.set(false);
@@ -370,44 +278,23 @@ export class RouteScheduleTab {
     this.api.removeSchedule(this.routeId(), schedule.id).subscribe({
       next: () => {
         this.toast.success('Schedule removed.');
-        this.load();
-        this.changed.emit();
+        this.afterChange();
       },
       error: () => this.toast.error('We could not remove this schedule.'),
     });
   }
 
-  protected run(): void {
-    if (this.generateForm.invalid || this.generating()) {
-      return;
-    }
+  private routeId(): string {
+    return this.store.detail()?.route.id ?? '';
+  }
 
-    this.generating.set(true);
-    this.generateResult.set(null);
-
-    const { fromDate, toDate } = this.generateForm.getRawValue();
-
-    this.api.generateTrips(this.routeId(), { fromDate, toDate }).subscribe({
-      next: (result) => {
-        this.generating.set(false);
-        this.generateResult.set({ created: result.created, skipped: result.skipped });
-        this.toast.success(`${result.created} trips generated.`);
-        this.changed.emit();
-      },
-      error: (error: unknown) => {
-        this.generating.set(false);
-        this.toast.error(
-          error instanceof VextoApiError ? error.message : 'We could not generate trips.',
-        );
-      },
-    });
+  private afterChange(): void {
+    this.store.refreshSchedules();
+    this.store.refreshDetail();
   }
 }
 
 /** An ISO date `days` from today. */
 function isoDate(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-
-  return date.toISOString().slice(0, 10);
+  return serviceDate(days);
 }

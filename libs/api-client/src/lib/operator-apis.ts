@@ -3,7 +3,10 @@ import { Observable } from 'rxjs';
 import type {
   AddRouteStopRequest,
   AgreementDetailResponse,
+  AgreementDocument,
+  AgreementDocumentType,
   AgreementResponse,
+  AttentionResponse,
   AssignPassengerRequest,
   AssignRouteResourcesRequest,
   ChangeTripResourcesRequest,
@@ -31,6 +34,8 @@ import type {
   PassengerInvitationStatus,
   PassengerResponse,
   PassengerUserAccount,
+
+  OperatorTripManifest,
   PickerOption,
   RouteDetailResponse,
   RouteListItem,
@@ -43,6 +48,7 @@ import type {
   RouteStop,
   RouteStopPosition,
   TenantSettings,
+  TripActivity,
   TripAttendance,
   TripDetailResponse,
   TripResponse,
@@ -483,6 +489,27 @@ export class TripsApi {
     return this.http.get(`/api/v1/trips/${tripId}`);
   }
 
+  /**
+   * The trip's operational timeline, oldest event first.
+   *
+   * Backed by a real read model rather than assembled from timestamps in the browser: a crew change
+   * and a cancellation have no timestamp on the trip at all, and a panel that invented one would be
+   * fabricating a record somebody might later rely on.
+   */
+  activity(tripId: string, limit?: number): Observable<TripActivity> {
+    return this.http.get(`/api/v1/trips/${tripId}/activity`, { limit });
+  }
+
+  /**
+   * The manifest with photo availability and transport access state.
+   *
+   * A separate call from `get`, because it is a separate endpoint: Trips is a leaf module and the
+   * join to billing and passenger data happens in the API host.
+   */
+  manifest(tripId: string): Observable<OperatorTripManifest> {
+    return this.http.get(`/api/v1/trips/${tripId}/manifest`);
+  }
+
   attendance(tripId: string): Observable<TripAttendance> {
     return this.http.get(`/api/v1/trips/${tripId}/attendance`);
   }
@@ -535,6 +562,17 @@ export class TripsApi {
 @Injectable({ providedIn: 'root' })
 export class DashboardApi {
   private readonly http = inject(VextoHttp);
+
+  /**
+   * What needs somebody to do something today.
+   *
+   * Counted on the server. The browser could work most of it out by fetching the passenger list,
+   * the fleet and every upcoming trip — which is exactly the aggregation this endpoint exists to
+   * stop, because it grows with the operator and three screens doing it would drift.
+   */
+  attention(): Observable<AttentionResponse> {
+    return this.http.get('/api/v1/dashboard/attention');
+  }
 
   summary(): Observable<DashboardSummary> {
     return this.http.get('/api/v1/dashboard/summary');
@@ -647,5 +685,34 @@ export class AgreementsApi {
 
   terminate(agreementId: string, reason: string | null): Observable<AgreementResponse> {
     return this.http.post(`/api/v1/agreements/${agreementId}/terminate`, { reason });
+  }
+
+  documents(agreementId: string): Observable<AgreementDocument[]> {
+    return this.http.get(`/api/v1/agreements/${agreementId}/documents`);
+  }
+
+  uploadDocument(
+    agreementId: string,
+    file: File,
+    type: AgreementDocumentType,
+  ): Observable<AgreementDocument> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+
+    // The type is a query parameter rather than a form field because that is how the endpoint takes
+    // it; the file is the body.
+    return this.http.upload(`/api/v1/agreements/${agreementId}/documents?type=${type}`, form);
+  }
+
+  deleteDocument(agreementId: string, documentId: string): Observable<void> {
+    return this.http.delete(`/api/v1/agreements/${agreementId}/documents/${documentId}`);
+  }
+
+  /**
+   * The path a download goes through. Returned rather than fetched here because the endpoint is
+   * authorized — see FileDownloader, which attaches the bearer token an `<a href>` cannot.
+   */
+  documentPath(agreementId: string, documentId: string): string {
+    return `/api/v1/agreements/${agreementId}/documents/${documentId}`;
   }
 }

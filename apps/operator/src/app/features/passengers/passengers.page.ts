@@ -26,6 +26,7 @@ import { PagedList } from '../../shared/paged-list';
 import { PassengerCard } from './passenger-card';
 import { PassengerDrawer } from './passenger-drawer';
 import { PassengerForm } from './passenger-form';
+import { openFormOnNewParam } from '../../shared/new-record';
 
 interface PassengerFilters extends Record<string, unknown> {
   search: string;
@@ -253,6 +254,9 @@ export class PassengersPage {
   protected readonly created = formatDate;
 
   constructor() {
+    // Lets the command palette’s “Create…” quick action land here with the form already open.
+    openFormOnNewParam(() => this.add());
+
     // One batched request per page of results. Asking per card would be the N+1 the batch endpoint
     // exists to prevent.
     effect(() => {

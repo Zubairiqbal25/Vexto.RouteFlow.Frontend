@@ -1,3 +1,4 @@
+import { expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 /**
@@ -92,11 +93,90 @@ export async function signIn(
   await page.waitForURL((url) => !url.pathname.startsWith('/login'));
 }
 
-export function isoDate(daysFromToday = 0): string {
-  const date = new Date();
-  date.setDate(date.getDate() + daysFromToday);
+/**
+ * Switches a list screen to its table layout, if it is not already there.
+ *
+ * **Cards are the default on every list screen**, because they are how an operator recognises a
+ * person or a vehicle and acts on them. A fresh browser profile therefore renders no table at all,
+ * and any `tbody tr` assertion looks for rows that were never there.
+ *
+ * The preference is remembered per screen in local storage, so this is a no-op on a second visit
+ * within one project — but each project gets its own storage, so every spec that reads rows has to
+ * ask for them. It clicks the same Cards/Table switch a person would.
+ *
+ * Matched on the switch's `title`, which is stable: the visible label is hidden below `sm`, so the
+ * button's accessible name changes with the viewport.
+ */
+export async function useTableView(page: Page): Promise<void> {
+  const table = page.locator('button[title="Table view"]');
 
-  return date.toISOString().slice(0, 10);
+  // Waited for rather than probed: right after a navigation the toolbar has not rendered, and
+  // `isVisible()` is an immediate question that answers "no" and skips the switch entirely.
+  await table.waitFor({ state: 'visible' });
+
+  if ((await table.getAttribute('aria-pressed')) === 'true') {
+    return;
+  }
+
+  await table.click();
+  await page.locator('button[title="Table view"][aria-pressed="true"]').waitFor();
+}
+
+/**
+ * Chooses a record from a searchable picker by typing part of its label.
+ *
+ * Every form that chooses one record out of many now uses a server-side type-ahead rather than a
+ * dropdown of the first twenty or fifty — which is not cosmetic: on a pilot database with more
+ * passengers and routes than the cap, the record being assigned was simply not in the list, and the
+ * list gave no sign of having ended.
+ *
+ * Waits for the option before clicking it: the picker debounces and then asks the server, so a
+ * click straight after typing lands on whatever the *previous* term returned.
+ */
+export async function chooseFromPicker(page: Page, inputId: string, term: string): Promise<void> {
+  const box = page.locator(`#${inputId}`);
+
+  await box.click();
+  await box.fill(term);
+
+  const option = page
+    .locator(`#${inputId}-listbox`)
+    .getByRole('option')
+    .filter({ hasText: term })
+    .first();
+
+  await expect(option).toBeVisible();
+  await option.click();
+
+  // The box shows what was chosen, which proves the selection landed rather than the menu merely
+  // having closed.
+  await expect(box).not.toHaveValue('');
+}
+
+/**
+ * A service date in the operator's own business day, as `YYYY-MM-DD`.
+ *
+ * **Not the UTC date.** Vexto operates in the Gulf, four hours ahead, so between midnight and 04:00
+ * local `toISOString()` still returns yesterday. A run started at 00:10 added a schedule for the
+ * local weekday and then asked for trips on the UTC date — a different day — and generated nothing,
+ * with an error that pointed at trip generation rather than at the clock. The app has the same fix,
+ * in `serviceDate`; these two have to agree or the suite tests a different day from the product.
+ */
+export function isoDate(daysFromToday = 0): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Dubai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(Date.now() + daysFromToday * 86_400_000));
+}
+
+/** The weekday of a business day. Paired with `isoDate` so the two never name different days. */
+export function isoWeekday(daysFromToday = 0): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Dubai',
+    weekday: 'long',
+  }).format(new Date(Date.now() + daysFromToday * 86_400_000));
 }
 
 /**
@@ -124,7 +204,19 @@ export const routeCode = `E2E-${runId}`;
 export async function openTodaysTrip(page: Page): Promise<void> {
   await page.goto('/trips');
 
-  await page.getByRole('link').filter({ hasText: routeCode }).first().click();
+  // The driver's home leads with one trip as a hero and lists the rest, so this run's trip is in
+  // one of two places depending on whether it happens to be the soonest. The hero's action says
+  // "START TRIP" and carries no route code — deliberately, because a driver reaching for it in a
+  // moving vehicle needs one unambiguous target — so it is found by the code *beside* the button
+  // rather than inside it.
+  const hero = page.getByRole('region', { name: 'Next trip' });
+
+  if (await hero.filter({ hasText: routeCode }).count()) {
+    await hero.getByRole('link', { name: 'START TRIP' }).click();
+  } else {
+    await page.getByRole('link').filter({ hasText: routeCode }).first().click();
+  }
+
   await page.waitForURL(/\/trips\/[0-9a-f-]{36}/u);
 }
 
@@ -204,7 +296,7 @@ async function passengersNextTripId(): Promise<string> {
   const token = await signInForToken(accounts.passenger);
 
   const response = await fetch(
-    `${apiUrl}/api/v1/passenger/me/trips?fromDate=${isoDate(0)}&pageSize=5`,
+    `${apiUrl}/api/v1/passenger/me/trips?fromDate=${isoDate(0)}&pageSize=25`,
     { headers: { authorization: `Bearer ${token}` } },
   );
 
@@ -216,16 +308,19 @@ async function passengersNextTripId(): Promise<string> {
     items: { tripId: string; scheduledStartAtUtc: string; tripStatus: string }[];
   };
 
-  // The same rule the home screen uses: trips that have not finished first, then by departure.
-  // Keeping the two in step is the point — a fixture that picked differently would publish a
-  // position for a bus nobody is looking at.
-  const finished = (status: string) => status === 'Completed' || status === 'Cancelled';
+  // The same rule the home screen uses: a running bus first, then one not yet run, then finished
+  // ones — and departure time only within a band. Keeping the two in step is the point. A fixture
+  // that picked differently would publish a position for a bus nobody is looking at, and on a
+  // database with several days of runs in it would publish to a trip that has not started, which
+  // the API correctly refuses with a 409.
+  const relevance = (status: string) =>
+    status === 'Started' ? 0 : status === 'Completed' || status === 'Cancelled' ? 2 : 1;
 
   const [next] = [...body.items].sort((a, b) => {
-    const settled = Number(finished(a.tripStatus)) - Number(finished(b.tripStatus));
+    const byRelevance = relevance(a.tripStatus) - relevance(b.tripStatus);
 
-    return settled !== 0
-      ? settled
+    return byRelevance !== 0
+      ? byRelevance
       : a.scheduledStartAtUtc.localeCompare(b.scheduledStartAtUtc);
   });
 
@@ -273,13 +368,17 @@ export function invoicePeriod(): { start: string; end: string; due: string } {
 export async function completePaymentAtProvider(invoiceId: string): Promise<void> {
   requireCredentials();
 
-  // Start the payment the way the app does, if it has not been started already. The server
-  // deduplicates, so calling this when the passenger has already opened the sheet returns the same
-  // attempt rather than a second one.
+  // Start the payment the way the app does.
   //
   // This step exists because an environment with no publishable key has no payment sheet to open,
   // and the browser therefore cannot start the payment itself. Everything after it — the provider
   // confirming, and Vexto learning about it — is the real path either way.
+  //
+  // **A 409 here is success, not failure.** An invoice that already has an attempt against it —
+  // typically one an earlier run started and abandoned — is refused a second one, which is the
+  // server being right: two live intents for one invoice is how somebody gets charged twice. What
+  // this helper wants is *that invoice settled at the provider*, and the existing attempt is the
+  // thing to settle. It is read back below either way.
   const passengerToken = await signInForToken(accounts.passenger);
 
   const started = await fetch(
@@ -287,7 +386,7 @@ export async function completePaymentAtProvider(invoiceId: string): Promise<void
     { method: 'POST', headers: { authorization: `Bearer ${passengerToken}` } },
   );
 
-  if (!started.ok) {
+  if (!started.ok && started.status !== 409) {
     throw new Error(`Starting the payment failed with ${started.status}.`);
   }
 

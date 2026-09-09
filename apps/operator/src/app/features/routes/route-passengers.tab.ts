@@ -1,43 +1,42 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  effect,
-  inject,
-  input,
-  output,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PassengersApi, RoutesApi, VextoApiError } from '@vexto/api-client';
-import type {
-  PassengerResponse,
-  RouteAssignmentType,
-  RoutePassengerAssignment,
-  RouteStop,
-} from '@vexto/models';
-import { CanDirective, VextoPermissions } from '@vexto/permissions';
+import type { RouteAssignmentType, RoutePassengerAssignment } from '@vexto/models';
+import { CanDirective, PermissionService, VextoPermissions } from '@vexto/permissions';
 import {
   ConfirmService,
   ToastService,
+  type VxCardAction,
   VxAvatar,
+  VxCardFact,
+  VxCardGrid,
   VxEmptyState,
-  VxErrorState,
+  VxEntityCard,
   VxField,
   VxFormSection,
   VxIcon,
   VxModal,
+  VxPicker,
+  type VxPickerOption,
   VxSectionCard,
-  VxSkeletonTable,
   VxStatusBadge,
 } from '@vexto/ui';
-import { formatDate } from '@vexto/utilities';
+import { formatDate, serviceDate } from '@vexto/utilities';
+import { RouteWorkspaceStore } from './route-workspace.store';
 
 /**
- * Who travels on this route, and from which stop.
+ * Who travels on this route, as operational cards rather than a table.
  *
- * The picker lists active passengers only — assigning someone who has been deactivated would create
- * a manifest entry that can never board. It fetches one page of a hundred, which covers the
- * realistic case; a tenant beyond that needs a searchable picker, noted in the API gaps.
+ * The question here is never "sort forty people by effective date" — it is "who gets on at stop 2,
+ * and is anyone on this route not currently allowed to travel". Cards put the face, the stop and
+ * the state on one line each; a table put them behind five columns of equal weight.
+ *
+ * **A withdrawn or suspended assignment stays visible**, dimmed and labelled. Hiding it would leave
+ * an operator wondering why a passenger they assigned last week is not on the manifest.
+ *
+ * No money appears here. Whether somebody owes a fare is a billing question, on a billing screen,
+ * behind a billing permission — the route planner's job is seats and stops.
  */
 @Component({
   selector: 'vexto-route-passengers-tab',
@@ -46,21 +45,22 @@ import { formatDate } from '@vexto/utilities';
     CanDirective,
     ReactiveFormsModule,
     VxAvatar,
+    VxCardFact,
+    VxCardGrid,
     VxEmptyState,
-    VxErrorState,
+    VxEntityCard,
     VxField,
     VxFormSection,
     VxIcon,
     VxModal,
+    VxPicker,
     VxSectionCard,
-    VxSkeletonTable,
     VxStatusBadge,
   ],
   template: `
     <vx-section-card
       title="Passengers"
       description="People assigned to this route and the stop they are collected from."
-      [padded]="false"
     >
       <button
         *vxCan="manage"
@@ -74,11 +74,7 @@ import { formatDate } from '@vexto/utilities';
         Assign passenger
       </button>
 
-      @if (loading()) {
-        <vx-skeleton-table [columns]="5" [rows]="4" />
-      } @else if (error()) {
-        <vx-error-state title="We could not load assignments" [message]="error()!" (retry)="load()" />
-      } @else if (assignments().length === 0) {
+      @if (assignments().length === 0) {
         <vx-empty-state
           icon="passengers"
           title="No passengers assigned"
@@ -89,59 +85,33 @@ import { formatDate } from '@vexto/utilities';
           "
         />
       } @else {
-        <div class="vx-table-scroll vx-scroll">
-          <table class="vx-table">
-            <thead>
-              <tr>
-                <th scope="col">Passenger</th>
-                <th scope="col">Stop</th>
-                <th scope="col">Type</th>
-                <th scope="col">Effective</th>
-                <th scope="col">Status</th>
-                <th scope="col"><span class="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (assignment of assignments(); track assignment.id) {
-                <tr>
-                  <td>
-                    <div class="flex items-center gap-3">
-                      <vx-avatar size="sm" [name]="assignment.passengerName" />
-                      <span class="vx-cell-strong">{{ assignment.passengerName }}</span>
-                    </div>
-                  </td>
-                  <td>{{ assignment.stopName }}</td>
-                  <td>{{ assignment.assignmentType }}</td>
-                  <td>
-                    {{ date(assignment.effectiveFrom) }}
-                    @if (assignment.effectiveTo) {
-                      <span class="text-ink-muted"> → {{ date(assignment.effectiveTo) }}</span>
-                    }
-                  </td>
-                  <td><vx-status-badge [status]="assignment.status" /></td>
-                  <td class="text-end">
-                    <button
-                      *vxCan="manage"
-                      type="button"
-                      class="vx-btn vx-btn-ghost vx-btn-sm vx-btn-icon"
-                      [attr.aria-label]="'Remove ' + assignment.passengerName"
-                      (click)="remove(assignment)"
-                    >
-                      <vx-icon name="trash" [size]="16" />
-                    </button>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+        <vx-card-grid [dense]="true">
+          @for (assignment of assignments(); track assignment.id) {
+            <vx-entity-card
+              [title]="assignment.passengerName"
+              [subtitle]="assignment.assignmentType + ' assignment'"
+              [muted]="assignment.status !== 'Active'"
+              [actions]="cardActions()"
+              (opened)="view(assignment)"
+              (action)="onAction($event, assignment)"
+            >
+              <vx-avatar media size="md" [name]="assignment.passengerName" />
+              <vx-status-badge status [status]="assignment.status" />
+
+              <dl class="mt-3 grid grid-cols-2 gap-3">
+                <vx-card-fact label="Pickup" [value]="stopLabel(assignment)" />
+                <vx-card-fact label="Effective" [value]="effective(assignment)" />
+              </dl>
+            </vx-entity-card>
+          }
+        </vx-card-grid>
       }
     </vx-section-card>
 
     <vx-modal
       [open]="formOpen()"
       [dismissable]="!saving()"
-      title="Assign passenger"
+      [title]="editing() ? 'Change pickup stop' : 'Assign passenger'"
       description="The passenger will appear on every trip generated for this route."
       (closed)="formOpen.set(false)"
     >
@@ -157,22 +127,30 @@ import { formatDate } from '@vexto/utilities';
         }
 
         <vx-form-section title="Assignment">
-          <vx-field
-            label="Passenger"
-            for="a-passenger"
-            [required]="true"
-            [wide]="true"
-            [control]="form.controls.passengerId"
-          >
-            <select id="a-passenger" class="vx-select" formControlName="passengerId">
-              <option value="">Select a passenger</option>
-              @for (passenger of candidates(); track passenger.id) {
-                <option [value]="passenger.id">
-                  {{ passenger.firstName }} {{ passenger.lastName }} · {{ passenger.mobileNumber }}
-                </option>
-              }
-            </select>
-          </vx-field>
+          @if (!editing()) {
+            <!--
+              A searchable picker, not a dropdown. The picker endpoint returns at most fifty rows,
+              so on an operator with more passengers than that the person being assigned simply was
+              not in the list — and the list gave no sign it had ended. See VxPicker.
+            -->
+            <vx-field
+              label="Passenger"
+              for="a-passenger"
+              [required]="true"
+              [wide]="true"
+              [control]="form.controls.passengerId"
+            >
+              <vx-picker
+                inputId="a-passenger"
+                placeholder="Search by name or mobile"
+                emptyLabel="No active passengers to assign."
+                [limit]="50"
+                [search]="searchPassengers"
+                [selected]="chosenPassenger()"
+                (chosen)="onPassengerChosen($event)"
+              />
+            </vx-field>
+          }
 
           <vx-field
             label="Pickup stop"
@@ -227,7 +205,7 @@ import { formatDate } from '@vexto/utilities';
         class="vx-btn vx-btn-primary"
         [disabled]="saving()"
       >
-        {{ saving() ? 'Assigning…' : 'Assign passenger' }}
+        {{ saving() ? 'Saving…' : editing() ? 'Save changes' : 'Assign passenger' }}
       </button>
     </vx-modal>
   `,
@@ -237,22 +215,45 @@ export class RoutePassengersTab {
   private readonly passengersApi = inject(PassengersApi);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
-
-  readonly routeId = input.required<string>();
-  readonly changed = output<void>();
+  private readonly router = inject(Router);
+  private readonly permissions = inject(PermissionService);
+  private readonly store = inject(RouteWorkspaceStore);
 
   protected readonly manage = VextoPermissions.Routes.Manage;
   protected readonly date = formatDate;
 
-  protected readonly assignments = signal<RoutePassengerAssignment[]>([]);
-  protected readonly stops = signal<RouteStop[]>([]);
-  protected readonly candidates = signal<PassengerResponse[]>([]);
-  protected readonly loading = signal(true);
-  protected readonly error = signal<string | null>(null);
+  protected readonly assignments = this.store.passengers;
+  protected readonly stops = this.store.stops;
 
+  /** The chosen passenger, kept whole so the picker shows a name rather than an id. */
+  protected readonly chosenPassenger = signal<VxPickerOption | null>(null);
+
+  /**
+   * How the picker asks the server.
+   *
+   * A field rather than a method so the reference is stable — an arrow function rebuilt on every
+   * change detection would restart the picker's search pipeline underneath the user.
+   */
+  protected readonly searchPassengers = (term: string) =>
+    this.passengersApi.picker({ search: term || undefined, pageSize: 50 });
   protected readonly formOpen = signal(false);
+  protected readonly editing = signal<RoutePassengerAssignment | null>(null);
   protected readonly saving = signal(false);
   protected readonly formError = signal<string | null>(null);
+
+  /** Actions are the same for every card, so the array is computed once rather than per row. */
+  protected readonly cardActions = computed<readonly VxCardAction[]>(() => {
+    const actions: VxCardAction[] = [{ id: 'view', label: 'View passenger', icon: 'eye' }];
+
+    if (this.permissions.has(VextoPermissions.Routes.Manage)) {
+      actions.push(
+        { id: 'change-pickup', label: 'Change pickup', icon: 'map-pin' },
+        { id: 'remove', label: 'Remove from route', icon: 'trash', danger: true },
+      );
+    }
+
+    return actions;
+  });
 
   protected readonly form = inject(FormBuilder).nonNullable.group({
     passengerId: ['', [Validators.required]],
@@ -262,38 +263,36 @@ export class RoutePassengersTab {
     effectiveTo: [''],
   });
 
-  constructor() {
-    effect(() => {
-      this.routeId();
-      this.load();
-    });
+  protected stopLabel(assignment: RoutePassengerAssignment): string {
+    const stop = this.stops().find((candidate) => candidate.id === assignment.routeStopId);
+
+    return stop
+      ? `${String(Number(stop.sequence)).padStart(2, '0')} — ${stop.name}`
+      : assignment.stopName;
   }
 
-  protected load(): void {
-    this.loading.set(true);
-    this.error.set(null);
+  protected effective(assignment: RoutePassengerAssignment): string {
+    return assignment.effectiveTo
+      ? `${this.date(assignment.effectiveFrom)} → ${this.date(assignment.effectiveTo)}`
+      : `From ${this.date(assignment.effectiveFrom)}`;
+  }
 
-    this.api.passengers(this.routeId()).subscribe({
-      next: (assignments) => {
-        this.assignments.set(assignments);
-        this.loading.set(false);
-      },
-      error: (error: unknown) => {
-        this.loading.set(false);
-        this.error.set(
-          error instanceof VextoApiError ? error.message : 'We could not load assignments.',
-        );
-      },
-    });
+  protected onAction(action: string, assignment: RoutePassengerAssignment): void {
+    if (action === 'view') {
+      this.view(assignment);
+    } else if (action === 'change-pickup') {
+      this.changePickup(assignment);
+    } else if (action === 'remove') {
+      void this.remove(assignment);
+    }
+  }
 
-    // The stops are needed for the picker and for the empty-state wording, so they load alongside.
-    this.api.stops(this.routeId()).subscribe({
-      next: (stops) => this.stops.set([...stops].sort((a, b) => a.sequence - b.sequence)),
-      error: () => this.stops.set([]),
-    });
+  protected view(assignment: RoutePassengerAssignment): void {
+    void this.router.navigate(['/passengers'], { queryParams: { id: assignment.passengerId } });
   }
 
   protected openAssign(): void {
+    this.editing.set(null);
     this.formError.set(null);
     this.form.reset({
       passengerId: '',
@@ -302,12 +301,29 @@ export class RoutePassengersTab {
       effectiveFrom: today(),
       effectiveTo: '',
     });
+    this.form.controls.passengerId.enable();
+    this.chosenPassenger.set(null);
     this.formOpen.set(true);
+  }
 
-    this.passengersApi.list({ status: 'Active', pageSize: 100 }).subscribe({
-      next: (result) => this.candidates.set(result.items),
-      error: () => this.toast.error('We could not load the passenger list.'),
+  protected onPassengerChosen(option: VxPickerOption | null): void {
+    this.chosenPassenger.set(option);
+    this.form.controls.passengerId.setValue(option?.id ?? '');
+    this.form.controls.passengerId.markAsDirty();
+  }
+
+  protected changePickup(assignment: RoutePassengerAssignment): void {
+    this.editing.set(assignment);
+    this.formError.set(null);
+    this.form.reset({
+      passengerId: assignment.passengerId,
+      routeStopId: assignment.routeStopId,
+      assignmentType: assignment.assignmentType,
+      effectiveFrom: assignment.effectiveFrom,
+      effectiveTo: assignment.effectiveTo ?? '',
     });
+    this.form.controls.passengerId.disable();
+    this.formOpen.set(true);
   }
 
   protected save(): void {
@@ -321,30 +337,38 @@ export class RoutePassengersTab {
     this.formError.set(null);
 
     const value = this.form.getRawValue();
+    const existing = this.editing();
+    const routeId = this.routeId();
 
-    this.api
-      .assignPassenger(this.routeId(), {
-        passengerId: value.passengerId,
-        routeStopId: value.routeStopId,
-        assignmentType: value.assignmentType as RouteAssignmentType,
-        effectiveFrom: value.effectiveFrom,
-        effectiveTo: value.effectiveTo || null,
-      })
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.formOpen.set(false);
-          this.toast.success('Passenger assigned.');
-          this.load();
-          this.changed.emit();
-        },
-        error: (error: unknown) => {
-          this.saving.set(false);
-          this.formError.set(
-            error instanceof VextoApiError ? error.message : 'We could not assign this passenger.',
-          );
-        },
-      });
+    const request = existing
+      ? this.api.updatePassengerAssignment(routeId, existing.id, {
+          routeStopId: value.routeStopId,
+          assignmentType: value.assignmentType as RouteAssignmentType,
+          effectiveFrom: value.effectiveFrom,
+          effectiveTo: value.effectiveTo || null,
+        })
+      : this.api.assignPassenger(routeId, {
+          passengerId: value.passengerId,
+          routeStopId: value.routeStopId,
+          assignmentType: value.assignmentType as RouteAssignmentType,
+          effectiveFrom: value.effectiveFrom,
+          effectiveTo: value.effectiveTo || null,
+        });
+
+    request.subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.formOpen.set(false);
+        this.toast.success(existing ? 'Pickup stop changed.' : 'Passenger assigned.');
+        this.afterChange();
+      },
+      error: (error: unknown) => {
+        this.saving.set(false);
+        this.formError.set(
+          error instanceof VextoApiError ? error.message : 'We could not save this assignment.',
+        );
+      },
+    });
   }
 
   protected async remove(assignment: RoutePassengerAssignment): Promise<void> {
@@ -362,15 +386,24 @@ export class RoutePassengersTab {
     this.api.removePassengerAssignment(this.routeId(), assignment.id).subscribe({
       next: () => {
         this.toast.success('Passenger removed from route.');
-        this.load();
-        this.changed.emit();
+        this.afterChange();
       },
       error: () => this.toast.error('We could not remove this passenger.'),
     });
+  }
+
+  private routeId(): string {
+    return this.store.detail()?.route.id ?? '';
+  }
+
+  /** The counts on the timeline and the capacity warning both move when an assignment changes. */
+  private afterChange(): void {
+    this.store.refreshPassengers();
+    this.store.refreshDetail();
   }
 }
 
 /** Today as `YYYY-MM-DD`, which is what a date input and the API both expect. */
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return serviceDate();
 }

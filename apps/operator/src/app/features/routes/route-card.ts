@@ -1,6 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import type { RouteListItem } from '@vexto/models';
 import {
+  type RouteGap,
+  type RouteReadinessInput,
+  isRouteReady,
+  primaryRouteGap,
+  routeGaps,
+} from './route-readiness';
+import {
   VxAttentionNote,
   type VxCardAction,
   VxCardFact,
@@ -72,10 +79,24 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         <vx-card-fact label="Vehicle" [value]="item().currentVehiclePlateNumber ?? 'Unassigned'" />
       </div>
 
-      @if (readiness(); as note) {
-        <vx-attention-note class="mt-3" [level]="note.level">
-          <vx-icon [name]="note.icon" [size]="15" />
-          {{ note.label }}
+      <!--
+        Readiness, said the same way as on the route's own page: either it can run, or the first
+        thing stopping it is named. "Active" alone was never the answer to "can this route run" — an
+        active route with no schedule generates nothing, and the card used to look identical to one
+        that was fine.
+      -->
+      @if (ready()) {
+        <p
+          class="mt-3 flex items-center gap-1.5 text-meta"
+          style="color: var(--vexto-success-text, var(--vexto-success))"
+        >
+          <vx-icon name="check-circle" [size]="15" />
+          Ready to run
+        </p>
+      } @else if (gap(); as blocking) {
+        <vx-attention-note class="mt-3" [level]="blocking.level === 'critical' ? 'critical' : 'warning'">
+          <vx-icon [name]="icon(blocking)" [size]="15" />
+          {{ blocking.detail }}
         </vx-attention-note>
       }
     </vx-entity-card>
@@ -103,33 +124,47 @@ export class RouteCard {
   });
 
   /**
-   * The one thing standing between this route and running, if anything is.
+   * Readiness, from the same rules the route workspace uses.
    *
-   * Ordered by what blocks first: without stops there is nothing to schedule, without a schedule
-   * there are no trips, and without crew a generated trip cannot depart. Only the first is shown —
-   * a card listing three problems is a card nobody reads to the end.
+   * The list row carries no vehicle capacity, so an over-capacity route cannot be detected from
+   * here — which is correct rather than a gap: it is a warning, not a blocker, and the route's own
+   * page is where a dispatcher goes to act on it.
    */
-  protected readonly readiness = computed<{
-    level: 'warning' | 'info';
-    icon: 'map-pin' | 'calendar' | 'alert';
-    label: string;
-  } | null>(() => {
+  private readonly readiness = computed<RouteReadinessInput>(() => {
     const item = this.item();
 
-    if (item.stopCount === 0) {
-      return { level: 'warning', icon: 'map-pin', label: 'No stops yet — add pickup points' };
-    }
-
-    if (item.scheduleCount === 0) {
-      return { level: 'warning', icon: 'calendar', label: 'No schedule — trips cannot be generated' };
-    }
-
-    if (!item.currentDriverId || !item.currentVehicleId) {
-      return { level: 'info', icon: 'alert', label: 'No crew rostered for this route' };
-    }
-
-    return null;
+    return {
+      stopCount: item.stopCount,
+      scheduleCount: item.scheduleCount,
+      passengerCount: item.activePassengerCount,
+      driverId: item.currentDriverId,
+      vehicleId: item.currentVehicleId,
+      vehicleCapacity: null,
+      status: item.route.status,
+    };
   });
+
+  private readonly gaps = computed(() => routeGaps(this.readiness()));
+
+  protected readonly ready = computed(() => isRouteReady(this.gaps()));
+
+  protected readonly gap = computed(() => primaryRouteGap(this.gaps()));
+
+  /** An icon per gap, so the shape of the problem is readable before the sentence is. */
+  protected icon(gap: RouteGap): 'map-pin' | 'calendar' | 'drivers' | 'vehicle' | 'alert' {
+    switch (gap.id) {
+      case 'stops':
+        return 'map-pin';
+      case 'schedule':
+        return 'calendar';
+      case 'driver':
+        return 'drivers';
+      case 'vehicle':
+        return 'vehicle';
+      default:
+        return 'alert';
+    }
+  }
 
   protected readonly actions = computed<VxCardAction[]>(() => {
     const item = this.item();
