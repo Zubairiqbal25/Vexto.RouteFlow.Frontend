@@ -11,6 +11,7 @@ import { VxConfirmHost, VxToastHost } from '@vexto/ui';
 import { VxCommandPalette } from './vx-command-palette';
 import type { NavSection } from './navigation';
 import { VxSidebar } from './vx-sidebar';
+import { VxSupportBanner } from './vx-support-banner';
 import { VxTopbar } from './vx-topbar';
 
 const COLLAPSE_KEY = 'vexto.sidebarCollapsed';
@@ -28,7 +29,15 @@ const COLLAPSE_KEY = 'vexto.sidebarCollapsed';
 @Component({
   selector: 'vx-admin-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, VxSidebar, VxTopbar, VxToastHost, VxConfirmHost, VxCommandPalette],
+  imports: [
+    RouterOutlet,
+    VxSidebar,
+    VxSupportBanner,
+    VxTopbar,
+    VxToastHost,
+    VxConfirmHost,
+    VxCommandPalette,
+  ],
   template: `
     <div class="min-h-screen bg-bg">
       <vx-sidebar
@@ -52,6 +61,10 @@ const COLLAPSE_KEY = 'vexto.sidebarCollapsed';
         class="flex min-h-screen flex-col transition-[padding] duration-200 ease-out xl:ps-(--rail)"
         [style.--rail]="collapsed() ? '76px' : '268px'"
       >
+        <!-- Above the top bar and outside the scroll container, so it cannot be scrolled away
+             while a support session is in progress. -->
+        <vx-support-banner />
+
         <vx-topbar
           (menuToggled)="mobileOpen.set(!mobileOpen())"
           (paletteRequested)="palette.toggle()"

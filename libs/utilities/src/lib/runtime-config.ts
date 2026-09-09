@@ -8,6 +8,19 @@ import { InjectionToken } from '@angular/core';
  * config file is public by definition. The Google Maps key is a public, referrer-restricted key.
  */
 export interface VextoRuntimeConfig {
+  /**
+   * Which deployment this is: `UAT`, `Production`, or empty.
+   *
+   * Shown as a badge in the operator shell so that nobody demonstrates to a customer, or files a
+   * bug, against the wrong environment — the three apps look identical, and a UAT tab left open
+   * beside a production one is how test data ends up in a real operator's account.
+   *
+   * **Production sets it to `Production` or leaves it empty, and no badge is shown.** A permanent
+   * banner on the real product is noise the operator's staff would learn to stop seeing, which
+   * would take the UAT badge's meaning with it.
+   */
+  readonly environmentName: string;
+
   /** Base address of the Vexto API, without a trailing slash. */
   readonly apiBaseUrl: string;
   /** Absolute or relative URL of the SignalR tracking hub. */
@@ -61,6 +74,7 @@ export const VEXTO_CONFIG = new InjectionToken<VextoRuntimeConfig>('VEXTO_CONFIG
 
 const defaults: VextoRuntimeConfig = {
   apiBaseUrl: 'https://localhost:7154',
+  environmentName: '',
   trackingHubUrl: 'https://localhost:7154/hubs/tracking',
   googleMapsApiKey: '',
   driverLocationIntervalSeconds: 5,

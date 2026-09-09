@@ -4,6 +4,7 @@ import { AuthService, AuthStore } from '@vexto/auth';
 import { PermissionService } from '@vexto/permissions';
 import { VxAvatar, VxIcon, VxThemeToggle } from '@vexto/ui';
 import { VxNotificationBell } from './vx-notification-bell';
+import { VxEnvironmentBadge } from './vx-environment-badge';
 import { VxTenantSelector } from './vx-tenant-selector';
 
 /**
@@ -31,6 +32,7 @@ import { VxTenantSelector } from './vx-tenant-selector';
     VxAvatar,
     VxIcon,
     VxNotificationBell,
+    VxEnvironmentBadge,
     VxTenantSelector,
     VxThemeToggle,
   ],
@@ -69,6 +71,7 @@ import { VxTenantSelector } from './vx-tenant-selector';
       </button>
 
       <div class="ms-auto flex items-center gap-1.5">
+        <vx-environment-badge />
         <vx-tenant-selector />
         <vx-theme-toggle />
         <vx-notification-bell />

@@ -1,5 +1,6 @@
 {
   "apiBaseUrl": "http://localhost:5154",
+  "environmentName": "",
   "trackingHubUrl": "http://localhost:5154/hubs/tracking",
   "googleMapsApiKey": "",
   "driverLocationIntervalSeconds": 5,
