@@ -46,8 +46,16 @@ export default defineConfig({
   // Ordered by `dependencies`, not by luck: the passenger cannot see a live bus before the driver
   // has started the trip, and the operator cannot verify attendance before it has been recorded.
   projects: [
+    // Sign-in first, on its own: every later project signs in through the same screen, so a
+    // failure here is the cause of everything after it and should read that way.
+    {
+      name: 'auth',
+      testMatch: /auth.otp.spec.ts/u,
+      use: { ...devices['Desktop Chrome'] },
+    },
     {
       name: 'platform',
+      dependencies: ['auth'],
       testMatch: /platform.setup.spec.ts/u,
       use: { ...devices['Desktop Chrome'], baseURL: OPERATOR_URL },
     },

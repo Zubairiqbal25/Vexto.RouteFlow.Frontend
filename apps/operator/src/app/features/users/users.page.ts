@@ -27,10 +27,10 @@ interface UserFilters extends Record<string, unknown> {
 /**
  * Portal accounts for this operator.
  *
- * **Invitations, not passwords.** This UI never handles a password for somebody else, and now it
- * does not have to: inviting creates the account and issues a one-shot link, and the person sets
- * their own password. The account is inert until they do — it has no password hash at all, so
- * there is no temporary credential in existence to leak or to forget to change.
+ * **Invitations, not credentials.** Vexto is passwordless, so this UI never handles a secret for
+ * somebody else: inviting creates the account and issues a one-shot link, and the person activates
+ * it from their own inbox. The account is inert until they do, and every later sign-in is a code
+ * sent to the same address.
  *
  * In Development the API returns the link so it can be copied straight out of the dialog. In
  * production it does not, and the invitee receives it through delivery instead; the dialog says so
@@ -63,7 +63,7 @@ interface UserFilters extends Record<string, unknown> {
       <div class="vx-card mb-5 p-5">
         <h2 class="text-body font-semibold text-ink">Invite a colleague</h2>
         <p class="mt-1 text-meta text-ink-muted">
-          They receive a one-time link and choose their own password. You never see it.
+          They receive a one-time link that activates their account. Sign-in is by email code.
         </p>
 
         <form class="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2" (submit)="invite($event)">

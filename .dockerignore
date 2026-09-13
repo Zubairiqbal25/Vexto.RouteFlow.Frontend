@@ -1,0 +1,32 @@
+# What the Angular image build must never receive.
+#
+# The build runs npm ci inside the image, so a developer's node_modules (hundreds of megabytes,
+# possibly built for Windows) is the single biggest thing to keep out. Nothing else here is
+# needed by `ng build`.
+
+node_modules/
+dist/
+.angular/
+
+# Test and review output
+test-results/
+playwright-report/
+visual-review/
+e2e/
+
+# Tooling, IDE, source control
+.git/
+.gitignore
+.vs/
+.vscode/
+.idea/
+.claude/
+*.md
+
+# Docker's own files
+Dockerfile
+.dockerignore
+
+# Never any environment file, even though the frontend has none today.
+.env
+.env.*

@@ -19,7 +19,7 @@ export const routes: Routes = [
     // setting up a passenger's phone, say — and bouncing them to the dashboard would strand it.
     path: 'accept-invitation',
     component: VxAcceptInvitationPage,
-    title: 'Set your password · Vexto Driver',
+    title: 'Activate your account · Vexto Driver',
   },
   {
     path: '',
@@ -38,7 +38,9 @@ export const routes: Routes = [
         // Route data is bound to the component's inputs by withComponentInputBinding.
         data: {
           home: '/trips',
-          subtitle: 'Sign in to see the trips assigned to you today.',
+          // Tablet-sized inputs and buttons: this is read from a mount, not a desk.
+          large: true,
+          subtitle: 'Enter your email and we will send a sign-in code.',
           footnote: 'Your operator creates driver accounts. Ask your dispatcher if you cannot sign in.',
         },
         title: 'Sign in · Vexto Driver',

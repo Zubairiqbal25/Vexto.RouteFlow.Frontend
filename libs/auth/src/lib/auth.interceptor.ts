@@ -7,7 +7,7 @@ import { AuthService } from './auth.service';
 /** Endpoints that must never carry a bearer token or trigger a refresh loop. */
 function isAuthEndpoint(request: HttpRequest<unknown>): boolean {
   return (
-    request.url.includes('/api/v1/auth/login') ||
+    request.url.includes('/api/v1/auth/otp/') ||
     request.url.includes('/api/v1/auth/refresh') ||
     request.url.includes('/api/v1/auth/logout')
   );
@@ -16,7 +16,8 @@ function isAuthEndpoint(request: HttpRequest<unknown>): boolean {
 /**
  * Attaches the access token, and recovers from an expired one exactly once per request.
  *
- * A 401 means the token has expired or been revoked. The first thing to try is a refresh; if that
+ * A 401 on an ordinary request means the token has expired or been revoked. (A 401 from the
+ * sign-in endpoints means a wrong code, which is why they are excluded above.) The first thing to try is a refresh; if that
  * also fails the session is genuinely over and the user is sent to sign in with their intended URL
  * preserved. A 401 on the refresh call itself is never retried — that is the loop this guards.
  */

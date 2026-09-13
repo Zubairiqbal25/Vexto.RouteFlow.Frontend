@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { demoTenantName, runId, serviceAdmin, signIn } from './fixtures';
+import { canSignIn, demoTenantName, runId, serviceAdmin, signIn } from './fixtures';
 
 /**
  * Vexto's own half of the pilot: onboarding an operator, inviting its owner, and stepping into its
@@ -12,20 +12,23 @@ import { demoTenantName, runId, serviceAdmin, signIn } from './fixtures';
  * that can influence which tenant's records are served, which is exactly why it is worth an E2E
  * test rather than a unit test alone.
  *
- * The whole spec skips rather than fails when no ServiceAdmin password is configured: the pilot
- * journey does not need one, and a machine set up only for the tenant story should not go red here.
+ * The whole spec skips rather than fails when the ServiceAdmin cannot sign in: the pilot journey
+ * does not need one, and a machine whose API was started without the seeded platform account —
+ * or without the Development code sink — should not go red here.
  */
 test.describe.configure({ mode: 'serial' });
 
 const tenantName = `Pilot Operator ${runId}`;
 const ownerEmail = `owner.${runId}@vexto-pilot.test`;
 
-test.skip(
-  () => serviceAdmin.password.length === 0,
-  'Set VEXTO_SERVICE_ADMIN_PASSWORD to run the platform journey.',
-);
+let platformAvailable = false;
+
+test.beforeAll(async () => {
+  platformAvailable = await canSignIn(serviceAdmin.email);
+});
 
 test.beforeEach(async ({ page }) => {
+  test.skip(!platformAvailable, 'The seeded ServiceAdmin cannot sign in here; see docs/pilot-setup.md.');
   await signIn(page, serviceAdmin);
 });
 
@@ -75,9 +78,9 @@ test('tenant cards carry deterministic health indicators', async ({ page }) => {
 /**
  * The onboarding wizard, end to end, including the owner invitation.
  *
- * The owner is invited rather than given a password an administrator chose: the invitation token is
- * stored hashed exactly like a refresh token, and nobody but the new owner ever knows their
- * password. Filling the owner step is therefore part of proving onboarding works, not an extra.
+ * The owner is invited, never handed a credential: the invitation token is stored hashed exactly
+ * like a refresh token, the link activates the account, and every sign-in after that is a code
+ * sent to the owner's own address. Filling the owner step is part of proving onboarding works.
  */
 test('creates a tenant and invites its owner', async ({ page }) => {
   await page.goto('/platform/tenants/new');

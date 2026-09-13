@@ -67,7 +67,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
  * in over the following days and the wizard says so rather than blocking. That mirrors the backend,
  * where every part of `businessDetails` is optional for exactly this reason.
  *
- * **The owner is invited, never given a password.** Omitting `owner.password` is what makes the API
+ * **The owner is invited.** Leaving `owner.invite` at its default is what makes the API
  * issue an invitation, and this screen never offers the alternative — a platform administrator
  * inventing a credential for a customer and then telling them what it is makes Vexto's staff
  * briefly the holder of it.
@@ -351,7 +351,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
             @case ('owner') {
               <p class="mb-4 text-body text-ink-secondary">
-                They receive an invitation and choose their own password. You never see it.
+                They receive an invitation link that activates their account. Sign-in is by email code.
               </p>
 
               <div class="vx-form-grid">
@@ -747,14 +747,14 @@ export class TenantWizardPage {
           primaryContactPhone: draft.primaryContactPhone.trim() || null,
         },
 
-        // No password, ever. Omitting it is what makes the API issue an invitation instead.
+        // Invited, never created active: the person learns about the account from the link.
         owner: this.hasOwner()
           ? {
               email: draft.ownerEmail.trim(),
               firstName: draft.ownerFirstName.trim(),
               lastName: draft.ownerLastName.trim(),
               phoneNumber: null,
-              password: null,
+              invite: true,
             }
           : null,
         activateImmediately: draft.activateImmediately,

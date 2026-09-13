@@ -1,16 +1,17 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthApi, VextoApiError } from '@vexto/api-client';
 import type { InvitationValidation } from '@vexto/models';
-import { VxIcon } from '@vexto/ui';
+import { VxIcon, VxLogo } from '@vexto/ui';
 
 /**
  * The page an invitation link opens, shared by all three apps.
  *
  * One component rather than three, because the flow is identical whoever was invited: the token
  * decides the tenant, the role and the record it attaches to, and none of that is visible here or
- * changeable from here. The page asks for one thing — a password — because that is genuinely the
- * only thing the invitee gets to decide.
+ * changeable from here. There is nothing to fill in. Vexto is passwordless, so the link is the
+ * proof of the mailbox and pressing Activate is the whole of accepting — every later sign-in asks
+ * for the same proof again, as a code sent to the same address.
  *
  * **Mobile first.** A driver or passenger opens this on a phone, from a link, probably outdoors.
  * Single column, large touch targets, no layout that needs a wide viewport.
@@ -21,12 +22,12 @@ import { VxIcon } from '@vexto/ui';
 @Component({
   selector: 'vx-accept-invitation-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [VxIcon],
+  imports: [VxIcon, VxLogo],
   template: `
     <main class="flex min-h-dvh items-center justify-center bg-surface-muted px-4 py-10">
       <div class="w-full max-w-sm">
-        <div class="mb-6 text-center">
-          <p class="text-xl font-semibold tracking-tight text-ink">Vexto</p>
+        <div class="mb-6 flex justify-center">
+          <vx-logo [height]="26" />
         </div>
 
         <section class="vx-card p-6">
@@ -56,72 +57,52 @@ import { VxIcon } from '@vexto/ui';
                 <span class="mx-auto mb-3 flex size-11 items-center justify-center rounded-full bg-surface-muted">
                   <vx-icon name="check-circle" [size]="22" class="text-primary" />
                 </span>
-                <h1 class="text-body font-semibold text-ink">Your account is ready</h1>
+                <h1 class="text-body font-semibold text-ink">Your account is active</h1>
                 <p class="mt-2 text-meta text-ink-muted">
-                  Sign in with {{ invitation()?.email }} and the password you just chose.
+                  Sign in with {{ invitation()?.email }}. We will email you a code each time.
                 </p>
-                <a class="vx-btn vx-btn-primary vx-btn-touch mt-5 w-full" href="/login">
+                <button type="button" class="vx-btn vx-btn-primary vx-btn-touch mt-5 w-full" (click)="signIn()">
                   Sign in
-                </a>
+                </button>
               </div>
             }
 
             @default {
-              <h1 class="text-body font-semibold text-ink">Set your password</h1>
+              <h1 class="text-body font-semibold text-ink">Activate your account</h1>
 
               <!--
                 Identity is shown so the person can see the link is genuinely for them. It is all
                 the server will say about an invitation before it is redeemed: nothing here names
                 the operator, the role, or the record it attaches to.
               -->
-              <p class="mt-1 text-meta text-ink-muted">
-                {{ invitation()?.fullName }} · {{ invitation()?.email }}
+              <dl class="mt-4 flex flex-col gap-3 text-body">
+                <div>
+                  <dt class="vx-section-label">Name</dt>
+                  <dd class="text-ink">{{ invitation()?.fullName }}</dd>
+                </div>
+                <div>
+                  <dt class="vx-section-label">Email</dt>
+                  <dd class="text-ink">{{ invitation()?.email }}</dd>
+                </div>
+              </dl>
+
+              <p class="mt-4 text-meta text-ink-muted">
+                No password needed. Whenever you sign in, Vexto emails a one-time code to this
+                address.
               </p>
 
-              <form class="mt-5" (submit)="accept($event)">
-                <label class="block">
-                  <span class="vx-section-label">New password</span>
-                  <input
-                    class="vx-input mt-1 w-full"
-                    type="password"
-                    autocomplete="new-password"
-                    required
-                    minlength="12"
-                    aria-describedby="password-help"
-                    [value]="password()"
-                    (input)="password.set(text($event))"
-                  />
-                </label>
+              @if (error(); as message) {
+                <p class="mt-4 text-meta text-danger" role="alert">{{ message }}</p>
+              }
 
-                <p id="password-help" class="mt-1.5 text-meta text-ink-muted">
-                  At least 12 characters, with upper and lower case, a number and a symbol.
-                </p>
-
-                <label class="mt-4 block">
-                  <span class="vx-section-label">Confirm password</span>
-                  <input
-                    class="vx-input mt-1 w-full"
-                    type="password"
-                    autocomplete="new-password"
-                    required
-                    [value]="confirmation()"
-                    (input)="confirmation.set(text($event))"
-                  />
-                </label>
-
-                @if (error(); as message) {
-                  <p class="mt-4 text-meta text-danger" role="alert">{{ message }}</p>
-                }
-
-                <button
-                  type="submit"
-          (click)="accept($event)"
-                  class="vx-btn vx-btn-primary vx-btn-touch mt-5 w-full"
-                  [disabled]="submitting()"
-                >
-                  {{ submitting() ? 'Setting your password…' : 'Set password and continue' }}
-                </button>
-              </form>
+              <button
+                type="button"
+                (click)="accept()"
+                class="vx-btn vx-btn-primary vx-btn-touch mt-5 w-full"
+                [disabled]="submitting()"
+              >
+                {{ submitting() ? 'Activating…' : 'Activate Account' }}
+              </button>
             }
           }
         </section>
@@ -134,19 +115,13 @@ export class VxAcceptInvitationPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
-  /** Held here only. Never persisted, never logged — it sets a password on an account. */
+  /** Held here only. Never persisted, never logged — it activates an account. */
   private readonly token = signal('');
 
   protected readonly state = signal<'checking' | 'ready' | 'invalid' | 'done'>('checking');
   protected readonly invitation = signal<InvitationValidation | null>(null);
-  protected readonly password = signal('');
-  protected readonly confirmation = signal('');
   protected readonly submitting = signal(false);
   protected readonly error = signal<string | null>(null);
-
-  protected readonly canSubmit = computed(
-    () => this.password().length >= 12 && this.password() === this.confirmation(),
-  );
 
   constructor() {
     const token = this.route.snapshot.queryParamMap.get('token') ?? '';
@@ -159,8 +134,7 @@ export class VxAcceptInvitationPage {
 
     this.token.set(token);
 
-    // Validated before the form is shown, so somebody with a dead link is told immediately rather
-    // than after thinking of a password.
+    // Validated before the button is shown, so somebody with a dead link is told immediately.
     this.api.validateInvitation(token).subscribe({
       next: (result) => {
         this.invitation.set(result);
@@ -173,33 +147,15 @@ export class VxAcceptInvitationPage {
     });
   }
 
-  protected text(event: Event): string {
-    return (event.target as HTMLInputElement).value;
-  }
-
-  protected accept(event: Event): void {
-    event.preventDefault();
-
+  protected accept(): void {
     if (this.submitting()) {
-      return;
-    }
-
-    if (this.password() !== this.confirmation()) {
-      this.error.set('Those passwords do not match.');
-
-      return;
-    }
-
-    if (this.password().length < 12) {
-      this.error.set('Your password needs to be at least 12 characters.');
-
       return;
     }
 
     this.submitting.set(true);
     this.error.set(null);
 
-    this.api.acceptInvitation({ token: this.token(), password: this.password() }).subscribe({
+    this.api.acceptInvitation({ token: this.token() }).subscribe({
       next: () => {
         this.submitting.set(false);
 
@@ -212,14 +168,23 @@ export class VxAcceptInvitationPage {
       error: (error: unknown) => {
         this.submitting.set(false);
 
-        // The server rejects a weak password with a readable reason, so it is shown. A rejected
-        // token means the link died between validating and submitting, which is rare but real.
+        // A rejected token means the link died between validating and submitting, which is rare
+        // but real.
         this.error.set(
           error instanceof VextoApiError
             ? error.message
-            : 'We could not set your password. Your link may have expired.',
+            : 'We could not activate your account. Your link may have expired.',
         );
       },
+    });
+  }
+
+  /** On to sign-in with the address filled in and a code already on its way. */
+  protected signIn(): void {
+    const email = this.invitation()?.email;
+
+    void this.router.navigate(['/login'], {
+      queryParams: email ? { email, sendCode: '1' } : {},
     });
   }
 }

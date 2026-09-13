@@ -14,3 +14,4 @@ export * from './lib/form';
 export * from './lib/overlay';
 export * from './lib/tabs';
 export * from './lib/theme';
+export * from './lib/otp-input';

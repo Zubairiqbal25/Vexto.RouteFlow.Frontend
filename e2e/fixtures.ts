@@ -4,40 +4,33 @@ import type { Page } from '@playwright/test';
 /**
  * The accounts the pilot journey signs in as.
  *
- * The addresses match what `DemoDataSeeder` creates, so a machine that has run the demo seed needs
- * to supply only the passwords. **No password has a default**, and that is deliberate: a suite that
- * ships credentials is a suite that eventually ships real ones, and a UAT environment seeded with
- * real-looking data is exactly what a default password gets somebody into.
+ * Vexto is passwordless: an account is an email address and nothing else. The addresses match what
+ * `DemoDataSeeder` creates, so a machine that has run the demo seed needs to supply nothing — the
+ * sign-in code is read back from the API's Development-only test sink rather than from a mailbox.
+ * That sink exists only when the API runs as Development with
+ * `Authentication:EmailOtp:CaptureCodesForTesting` set, which is how a local or E2E environment is
+ * configured and how no deployed one ever is.
  *
  * See docs/pilot-setup.md for the whole sequence from a clean machine.
  */
 export const accounts = {
-  operator: {
-    email: process.env['VEXTO_OPERATOR_EMAIL'] ?? 'owner@vexto-demo.test',
-    password: process.env['VEXTO_OPERATOR_PASSWORD'] ?? '',
-  },
-  driver: {
-    email: process.env['VEXTO_DRIVER_EMAIL'] ?? 'driver@vexto-demo.test',
-    password: process.env['VEXTO_DRIVER_PASSWORD'] ?? '',
-  },
-  passenger: {
-    email: process.env['VEXTO_PASSENGER_EMAIL'] ?? 'passenger@vexto-demo.test',
-    password: process.env['VEXTO_PASSENGER_PASSWORD'] ?? '',
-  },
+  operator: { email: process.env['VEXTO_OPERATOR_EMAIL'] ?? 'owner@vexto-demo.test' },
+  driver: { email: process.env['VEXTO_DRIVER_EMAIL'] ?? 'driver@vexto-demo.test' },
+  passenger: { email: process.env['VEXTO_PASSENGER_EMAIL'] ?? 'passenger@vexto-demo.test' },
 };
 
 /**
- * Vexto's own platform administrator.
+ * Vexto's own platform administrator: the seeded ServiceAdmin.
  *
- * Kept out of `accounts` on purpose: `requireCredentials` insists on every entry there, and the
- * pilot journey does not need a ServiceAdmin. The visual review does, because the platform surface
- * and the onboarding wizard are gated on `Tenants.View` — which a TenantOwner correctly does not
- * hold. A run without this password skips those screenshots rather than failing.
+ * Kept out of `accounts` on purpose so the pilot journey, which does not need a ServiceAdmin, does
+ * not depend on one having been seeded. The platform journey and the visual review use it, and
+ * skip rather than fail when the account cannot sign in.
  */
 export const serviceAdmin = {
-  email: process.env['VEXTO_SERVICE_ADMIN_EMAIL'] ?? 'service.admin@vexto.test',
-  password: process.env['VEXTO_SERVICE_ADMIN_PASSWORD'] ?? '',
+  email: process.env['VEXTO_SERVICE_ADMIN_EMAIL'] ?? 'zubairiqbal25@gmail.com',
 };
+
+export type Account = { readonly email: string };
 
 /** The operator the demo seed creates. Used to assert the run is pointed at seeded data. */
 export const demoTenantName = process.env['VEXTO_TENANT_NAME'] ?? 'Vexto Demo Transport';
@@ -60,37 +53,147 @@ export function departureTime(): string {
 /** A run-scoped suffix so a re-run does not collide with the records the last one created. */
 export const runId = process.env['VEXTO_RUN_ID'] ?? String(Date.now()).slice(-6);
 
-/**
- * Fails immediately, and legibly, when the passwords are missing.
- *
- * Without this the suite fails on a login form with a timeout, which sends whoever is running it
- * looking at selectors rather than at their environment.
- */
-export function requireCredentials(): void {
-  const missing = Object.entries(accounts)
-    .filter(([, account]) => account.password.length === 0)
-    .map(([role]) => `VEXTO_${role.toUpperCase()}_PASSWORD`);
+/** Where the API lives. The apps proxy to it; this file talks to it directly. */
+export const apiUrl = process.env['VEXTO_API_URL'] ?? 'http://localhost:5154';
 
-  if (missing.length > 0) {
-    throw new Error(
-      `The pilot journey needs these environment variables: ${missing.join(', ')}. ` +
-        'They are the passwords of the demo accounts created by the backend demo seed — see ' +
-        'docs/pilot-setup.md.',
-    );
+/**
+ * Asks the API to send a sign-in code, exactly as the login screen does.
+ *
+ * Over HTTP rather than through the page so the same helper serves the browser journeys and the
+ * API-only fixtures below. The response is the same whatever the address, by design.
+ */
+export async function requestOtp(email: string): Promise<void> {
+  const response = await fetch(`${apiUrl}/api/v1/auth/otp/request`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Requesting a sign-in code for ${email} failed with ${response.status}.`);
   }
 }
 
-export async function signIn(
-  page: Page,
-  account: { email: string; password: string },
-): Promise<void> {
-  requireCredentials();
+/**
+ * Reads the code the API just sent, from its Development-only test sink.
+ *
+ * A 404 here means one of two things, and the message says both: the API is not running with the
+ * sink enabled, or the address has no active account and was therefore sent nothing — which is the
+ * enumeration-safe behaviour of the request endpoint, not a bug in it.
+ */
+export async function getOtpFromTestProvider(email: string): Promise<string> {
+  const response = await fetch(
+    `${apiUrl}/api/v1/development/email-otp/${encodeURIComponent(email)}`,
+  );
 
-  await page.goto('/login');
-  await page.getByLabel('Email').fill(account.email);
-  await page.getByLabel('Password').fill(account.password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  if (!response.ok) {
+    throw new Error(
+      `No sign-in code was captured for ${email} (${response.status}). The API must run as ` +
+        'Development with Authentication__EmailOtp__CaptureCodesForTesting=true, and the ' +
+        'address must belong to an active account — see docs/pilot-setup.md.',
+    );
+  }
+
+  const body = (await response.json()) as { code: string };
+
+  return body.code;
+}
+
+/** Presents a code over HTTP and returns the access token. For fixtures that never open a page. */
+export async function verifyOtp(email: string, code: string): Promise<string> {
+  const response = await fetch(`${apiUrl}/api/v1/auth/otp/verify`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email, code }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Verifying the sign-in code for ${email} failed with ${response.status}.`);
+  }
+
+  const body = (await response.json()) as { accessToken: string };
+
+  return body.accessToken;
+}
+
+/**
+ * Signs in through the real login screen: the email, then the code the API sent, read back from the
+ * test sink and typed into the boxes the way a person would.
+ *
+ * The code is read *after* the page has asked for one, so what is typed is the code the page's own
+ * request produced — the same challenge, not an earlier one that a fresh request would retire.
+ */
+export async function signIn(page: Page, account: Account, baseUrl = ''): Promise<void> {
+  await page.goto(`${baseUrl}/login`);
+  await page.getByLabel('Email address').fill(account.email);
+
+  const previous = await latestOtp(account.email);
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+
+  await enterCodeFromSink(page, account.email, previous);
+
   await page.waitForURL((url) => !url.pathname.startsWith('/login'));
+}
+
+/**
+ * Types the code the page's own request produced.
+ *
+ * Waited for rather than read immediately, and compared with what the sink held before the page
+ * asked: the previous code may already be spent by an earlier test. If the page's request landed
+ * inside the resend cooldown the API sent nothing, so this does what a person does — waits for the
+ * "Resend code" button and presses it — and then types the code that produces.
+ */
+export async function enterCodeFromSink(page: Page, email: string, previous: string | null): Promise<void> {
+  let code = await waitForNewOtp(email, previous, 2_500);
+
+  if (code === null) {
+    await page.getByRole('button', { name: 'Resend code' }).click({ timeout: 15_000 });
+    code = await waitForNewOtp(email, previous, 5_000);
+  }
+
+  if (code === null) {
+    throw new Error(`No new sign-in code arrived for ${email}. See docs/pilot-setup.md.`);
+  }
+
+  await page.getByRole('textbox', { name: 'Digit 1 of 6' }).click();
+  await page.keyboard.type(code);
+}
+
+/** The code the sink currently holds for an address, or null when it holds none. */
+export async function latestOtp(email: string): Promise<string | null> {
+  const response = await fetch(`${apiUrl}/api/v1/development/email-otp/${encodeURIComponent(email)}`);
+
+  return response.ok ? ((await response.json()) as { code: string }).code : null;
+}
+
+async function waitForNewOtp(email: string, previous: string | null, timeoutMs: number): Promise<string | null> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const current = await latestOtp(email);
+
+    if (current && current !== previous) {
+      return current;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  return null;
+}
+
+/** Whether an address can sign in at all — used to skip the platform journey when it cannot. */
+export async function canSignIn(email: string): Promise<boolean> {
+  try {
+    await requestOtp(email);
+    await getOtpFromTestProvider(email);
+
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -230,9 +333,6 @@ export async function openTodaysTrip(page: Page): Promise<void> {
 export const demoDriverName = process.env['VEXTO_DRIVER_NAME'] ?? 'Imran Demo';
 export const demoPassengerName = process.env['VEXTO_PASSENGER_NAME'] ?? 'Aisha Demo';
 
-/** Where the API lives. The apps proxy to it; this file talks to it directly. */
-export const apiUrl = process.env['VEXTO_API_URL'] ?? 'http://localhost:5154';
-
 /**
  * Publishes one position for today's trip, over the API, as the driver.
  *
@@ -245,8 +345,6 @@ export const apiUrl = process.env['VEXTO_API_URL'] ?? 'http://localhost:5154';
  * and the same payload the driver app sends. Only the thing holding the phone is different.
  */
 export async function publishDriverPosition(): Promise<void> {
-  requireCredentials();
-
   const trip = await passengersNextTripId();
   const token = await signInForToken(accounts.driver);
 
@@ -268,20 +366,10 @@ export async function publishDriverPosition(): Promise<void> {
   }
 }
 
-async function signInForToken(account: { email: string; password: string }): Promise<string> {
-  const response = await fetch(`${apiUrl}/api/v1/auth/login`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ email: account.email, password: account.password }),
-  });
+async function signInForToken(account: Account): Promise<string> {
+  await requestOtp(account.email);
 
-  if (!response.ok) {
-    throw new Error(`Signing in as ${account.email} failed with ${response.status}.`);
-  }
-
-  const body = (await response.json()) as { accessToken: string };
-
-  return body.accessToken;
+  return verifyOtp(account.email, await getOtpFromTestProvider(account.email));
 }
 
 /**
@@ -366,8 +454,6 @@ export function invoicePeriod(): { start: string; end: string; due: string } {
  * HMAC.
  */
 export async function completePaymentAtProvider(invoiceId: string): Promise<void> {
-  requireCredentials();
-
   // Start the payment the way the app does.
   //
   // This step exists because an environment with no publishable key has no payment sheet to open,

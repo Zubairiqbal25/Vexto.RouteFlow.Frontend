@@ -21,10 +21,9 @@ export interface InvitationGateway {
 /**
  * The app-access panel on a passenger or driver detail screen.
  *
- * **There is no password field here, and there will not be one.** An administrator inviting
- * somebody supplies an address; the person sets their own password from a one-time link. That is
- * the whole point of the invitation flow, and a UI that still offered to choose a password for
- * somebody else would quietly keep the old habit alive.
+ * **There is no password field here, and there will not be one.** Vexto is passwordless: an
+ * administrator inviting somebody supplies an address, the person activates the account from a
+ * one-time link, and signs in from then on with a code sent to that address.
  *
  * The acceptance link is shown only when the API returns one, which it does only in Development.
  * In production it goes to the invitee through delivery and appears nowhere in this screen — it is

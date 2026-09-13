@@ -31,7 +31,7 @@ export const routes: Routes = [
     // setting up a passenger's phone, say — and bouncing them to the dashboard would strand it.
     path: 'accept-invitation',
     component: VxAcceptInvitationPage,
-    title: 'Set your password · Vexto',
+    title: 'Activate your account · Vexto',
   },
   {
     path: '',
@@ -47,7 +47,7 @@ export const routes: Routes = [
       {
         path: 'login',
         component: VxLoginPage,
-        data: { home: '/dashboard' },
+        data: { home: '/dashboard', platformHome: '/platform' },
         title: 'Sign in · Vexto',
       },
     ],

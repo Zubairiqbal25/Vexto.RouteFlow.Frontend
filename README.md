@@ -63,10 +63,11 @@ npm run api:generate             # regenerate types from the committed OpenAPI d
 The contract comes from the backend, never from hand-written interfaces:
 
 ```bash
-cd ../Backend
-Database__SkipInitialization=true dotnet build src/Vexto.Api/Vexto.Api.csproj
-cp src/Vexto.Api/obj/Vexto.Api.json docs/api/openapi-v1.json
-cd ../frontend && npm run api:generate
+# 1. Run the API in Development (any database; Database__SkipInitialization=true needs none).
+# 2. Pull the served document into Backend/docs/api, normalised so the diff shows only the contract:
+VEXTO_API_URL=http://localhost:5154 npm run api:sync
+# 3. Regenerate the TypeScript types from it:
+npm run api:generate
 ```
 
 A backend rename then shows up as a TypeScript error rather than a runtime surprise.

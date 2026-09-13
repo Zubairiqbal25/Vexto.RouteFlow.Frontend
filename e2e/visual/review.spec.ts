@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { accounts, serviceAdmin } from '../fixtures';
+import { type Account, accounts, canSignIn, serviceAdmin, signIn as signInThroughScreen } from '../fixtures';
 
 /**
  * Screenshots of every major screen, in both themes, at the breakpoints each app is used at.
@@ -8,8 +8,8 @@ import { accounts, serviceAdmin } from '../fixtures';
  * it, and so a visual regression is visible in a diff rather than discovered by a customer. It is
  * kept out of `playwright.config.ts`'s default projects and run explicitly.
  *
- * Credentials come from the same environment variables as the pilot journey. No password is ever
- * written down here.
+ * Accounts come from the same environment variables as the pilot journey. Vexto is passwordless,
+ * so there is nothing to write down: the sign-in code is read back from the API's Development sink.
  */
 
 const OPERATOR = process.env['VEXTO_OPERATOR_URL'] ?? 'http://localhost:4200';
@@ -32,16 +32,8 @@ async function useTheme(page: import('@playwright/test').Page, theme: 'light' | 
   }, theme);
 }
 
-async function signIn(
-  page: import('@playwright/test').Page,
-  baseUrl: string,
-  account: { email: string; password: string },
-) {
-  await page.goto(`${baseUrl}/login`);
-  await page.getByLabel('Email').fill(account.email);
-  await page.getByLabel('Password').fill(account.password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.waitForURL((url) => !url.pathname.includes('login'), { timeout: 20_000 });
+async function signIn(page: import('@playwright/test').Page, baseUrl: string, account: Account) {
+  await signInThroughScreen(page, account, baseUrl);
 }
 
 for (const theme of ['light', 'dark'] as const) {
@@ -49,9 +41,8 @@ for (const theme of ['light', 'dark'] as const) {
     test.use({ viewport: { width: 1440, height: 900 } });
 
     // The platform surface needs Tenants.View, which only a ServiceAdmin holds.
-    test.skip(!serviceAdmin.password, 'VEXTO_SERVICE_ADMIN_PASSWORD is not set.');
-
     test('overview, tenants and the onboarding wizard', async ({ page }) => {
+      test.skip(!(await canSignIn(serviceAdmin.email)), 'The seeded ServiceAdmin cannot sign in here.');
       await useTheme(page, theme);
       await signIn(page, OPERATOR, serviceAdmin);
 

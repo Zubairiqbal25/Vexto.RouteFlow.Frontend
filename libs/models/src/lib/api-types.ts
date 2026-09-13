@@ -33,7 +33,10 @@ type Schema<K extends keyof RawSchemas> = Narrow<RawSchemas[K]>;
 /* Authentication ------------------------------------------------------------------------------ */
 export type AuthenticationResponse = Schema<'AuthenticationResponse'>;
 export type AuthenticatedUser = Schema<'AuthenticatedUserResponse'>;
-export type LoginCommand = Schema<'LoginCommand'>;
+/** Passwordless sign-in: ask for a code, then present it. There is no password anywhere. */
+export type RequestEmailOtpCommand = Schema<'RequestEmailOtpCommand'>;
+export type EmailOtpRequestResponse = Schema<'EmailOtpRequestResponse'>;
+export type VerifyEmailOtpCommand = Schema<'VerifyEmailOtpCommand'>;
 
 /* Paging -------------------------------------------------------------------------------------- */
 export interface PagedResult<T> {

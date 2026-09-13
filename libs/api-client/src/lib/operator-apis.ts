@@ -22,7 +22,6 @@ import type {
   DriverInvitation,
   DriverInvitationStatus,
   DriverResponse,
-  DriverUserAccount,
   GenerateTripsRequest,
   GenerateTripsResponse,
   InviteUserCommand,
@@ -33,7 +32,6 @@ import type {
   PassengerInvitation,
   PassengerInvitationStatus,
   PassengerResponse,
-  PassengerUserAccount,
 
   OperatorTripManifest,
   PickerOption,
@@ -126,13 +124,6 @@ export class PassengersApi {
     return this.http.post(`/api/v1/passengers/${passengerId}/deactivate`);
   }
 
-  createUserAccount(
-    passengerId: string,
-    body: { email: string; password: string },
-  ): Observable<PassengerUserAccount> {
-    return this.http.post(`/api/v1/passengers/${passengerId}/create-user`, body);
-  }
-
   /**
    * Server-side search for a form control.
    *
@@ -158,7 +149,7 @@ export class PassengersApi {
   }
 
   /**
-   * Invites the passenger to the app. No password: they choose their own, and nobody else ever
+   * Invites the passenger to the app. No password — Vexto has none: the link activates the account, and nobody else ever
    * knows it. The role and the link to this record are decided by the server.
    */
   invite(passengerId: string, email: string): Observable<PassengerInvitation> {
@@ -230,13 +221,6 @@ export class DriversApi {
 
   suspend(driverId: string): Observable<DriverResponse> {
     return this.http.post(`/api/v1/drivers/${driverId}/suspend`);
-  }
-
-  createUserAccount(
-    driverId: string,
-    body: { email: string; password: string },
-  ): Observable<DriverUserAccount> {
-    return this.http.post(`/api/v1/drivers/${driverId}/create-user`, body);
   }
 
   picker(query: PickerQuery = {}): Observable<PickerOption[]> {
@@ -637,10 +621,10 @@ export class UsersApi {
   }
 
   /**
-   * Creates the account and issues a one-shot link for the person to set their own password.
+   * Creates the account and issues a one-shot link that activates it.
    *
-   * Preferred over `create`, which makes an administrator invent a password for somebody else and
-   * then transmit it somehow. The response carries the link only in Development.
+   * Preferred over `create`, which makes an account active with no email to the person. The
+   * response carries the link only in Development.
    */
   invite(command: InviteUserCommand): Observable<InviteUserResult> {
     return this.http.post('/api/v1/users/invitations', command);

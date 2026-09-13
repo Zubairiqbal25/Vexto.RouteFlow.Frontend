@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthApi } from '@vexto/api-client';
-import type { AuthenticationResponse } from '@vexto/models';
+import type { AuthenticationResponse, EmailOtpRequestResponse } from '@vexto/models';
 import { Observable, catchError, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 import { AuthStore } from './auth-store';
 
@@ -20,8 +20,14 @@ export class AuthService {
 
   private inFlightRefresh: Observable<string> | null = null;
 
-  login(email: string, password: string): Observable<AuthenticationResponse> {
-    return this.api.login(email, password).pipe(tap((response) => this.store.set(response)));
+  /** Step one of signing in: a code goes to the address. Nothing is stored yet. */
+  requestOtp(email: string): Observable<EmailOtpRequestResponse> {
+    return this.api.requestOtp(email);
+  }
+
+  /** Step two: the code comes back, and a successful answer is the session. */
+  verifyOtp(email: string, code: string): Observable<AuthenticationResponse> {
+    return this.api.verifyOtp(email, code).pipe(tap((response) => this.store.set(response)));
   }
 
   /**

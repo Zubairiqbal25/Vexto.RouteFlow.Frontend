@@ -6,6 +6,7 @@ import type {
   AuthenticatedUser,
   AuthenticationResponse,
   DeclareAbsenceRequest,
+  EmailOtpRequestResponse,
   DriverNextStop,
   DriverTrip,
   DriverTripDetail,
@@ -27,11 +28,13 @@ import type {
   PushDevice,
   RecordTripLocationResponse,
   RegisterPushDeviceCommand,
+  RequestEmailOtpCommand,
   TripLocation,
   TripLocationHistory,
   TripPassenger,
   TripResponse,
   UnreadNotificationCount,
+  VerifyEmailOtpCommand,
 } from '@vexto/models';
 import { VextoHttp } from './vexto-http';
 
@@ -39,8 +42,17 @@ import { VextoHttp } from './vexto-http';
 export class AuthApi {
   private readonly http = inject(VextoHttp);
 
-  login(email: string, password: string): Observable<AuthenticationResponse> {
-    return this.http.post('/api/v1/auth/login', { email, password });
+  /**
+   * Asks for a sign-in code to be emailed. The answer is the same whether or not the address has
+   * an account — deliberately, so the endpoint cannot be used to find out.
+   */
+  requestOtp(email: string): Observable<EmailOtpRequestResponse> {
+    return this.http.post('/api/v1/auth/otp/request', { email } satisfies RequestEmailOtpCommand);
+  }
+
+  /** Presents the code. Success is the ordinary session; the code is spent either way. */
+  verifyOtp(email: string, code: string): Observable<AuthenticationResponse> {
+    return this.http.post('/api/v1/auth/otp/verify', { email, code } satisfies VerifyEmailOtpCommand);
   }
 
   refresh(refreshToken: string): Observable<AuthenticationResponse> {
@@ -65,7 +77,7 @@ export class AuthApi {
     return this.http.get(`/api/v1/auth/invitations/${encodeURIComponent(token)}/validate`);
   }
 
-  /** Redeems an invitation by setting the account password. Returns no session: sign in after. */
+  /** Redeems an invitation, activating the account. Returns no session: the person signs in by code. */
   acceptInvitation(command: AcceptInvitationCommand): Observable<{ email: string }> {
     return this.http.post('/api/v1/auth/invitations/accept', command);
   }

@@ -27,7 +27,7 @@ export const routes: Routes = [
     // setting up a passenger's phone, say — and bouncing them to the dashboard would strand it.
     path: 'accept-invitation',
     component: VxAcceptInvitationPage,
-    title: 'Set your password · Vexto',
+    title: 'Activate your account · Vexto',
   },
   {
     path: '',
@@ -45,7 +45,7 @@ export const routes: Routes = [
         component: VxLoginPage,
         data: {
           home: '/home',
-          subtitle: 'Sign in to see your bus.',
+          subtitle: 'Enter your email and we will send a sign-in code.',
           footnote: 'Your employer or transport operator creates your Vexto account.',
         },
         title: 'Sign in · Vexto',
