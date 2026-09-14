@@ -250,6 +250,85 @@
           }
         }
       }
+    },
+    "cms": {
+      "projectType": "application",
+      "root": "apps/cms",
+      "sourceRoot": "apps/cms/src",
+      "prefix": "vexto",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/cms",
+            "index": "apps/cms/src/index.html",
+            "browser": "apps/cms/src/main.ts",
+            "polyfills": [],
+            "tsConfig": "apps/cms/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "apps/cms/public"
+              }
+            ],
+            "styles": [
+              "apps/cms/src/styles.css"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "1.2mb",
+                  "maximumError": "2.5mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "8kb",
+                  "maximumError": "16kb"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "port": 4203
+          },
+          "configurations": {
+            "production": {
+              "buildTarget": "cms:build:production"
+            },
+            "development": {
+              "buildTarget": "cms:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular/build:extract-i18n"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "apps/cms/tsconfig.spec.json",
+            "buildTarget": "cms:build:development",
+            "runner": "vitest",
+            "include": [
+              "**/*.spec.ts"
+            ]
+          }
+        }
+      }
     }
   }
 }

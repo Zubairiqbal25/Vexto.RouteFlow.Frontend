@@ -75,7 +75,12 @@ export type VxIconName =
   | 'activity'
   | 'home'
   | 'camera'
-  | 'globe';
+  | 'globe'
+  // Content management: a test send, a version history, a variables reference, a page layout.
+  | 'send'
+  | 'history'
+  | 'code'
+  | 'layout';
 
 const PATHS: Readonly<Record<VxIconName, string>> = {
   dashboard: 'M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z',
@@ -142,6 +147,12 @@ const PATHS: Readonly<Record<VxIconName, string>> = {
   card: 'M3 7h18v11H3zM3 11h18M6.5 15H10',
   wallet: 'M4 7h13a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1V7zM4 7a2 2 0 0 1 2-2h9M16 13h.01',
   globe: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3 12h18M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z',
+
+  // Content management.
+  send: 'M21 3L3 10.5l7.5 3L14 21l7-18zM10.5 13.5L21 3',
+  history: 'M4 12a8 8 0 1 0 2.3-5.7M4 4v4h4M12 8v4l3 2',
+  code: 'M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14',
+  layout: 'M4 4h16v16H4zM4 9h16M9 9v11',
 
   // Trend and state.
   'trend-up': 'M3 17l6-6 4 4 8-8M21 7v5h-5',

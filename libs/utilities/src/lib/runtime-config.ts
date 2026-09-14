@@ -23,6 +23,16 @@ export interface VextoRuntimeConfig {
 
   /** Base address of the Vexto API, without a trailing slash. */
   readonly apiBaseUrl: string;
+
+  /**
+   * Where the operator portal lives, without a trailing slash.
+   *
+   * Read by the CMS so that "Open in Operator Portal" on a tenant can hand a ServiceAdmin across to
+   * the operator app in that tenant's support context. The apps are separate origins, so the choice
+   * cannot travel in storage; it travels as a query parameter the operator app honours only for a
+   * signed-in ServiceAdmin, and the API re-checks the privilege on every request either way.
+   */
+  readonly operatorPortalUrl: string;
   /** Absolute or relative URL of the SignalR tracking hub. */
   readonly trackingHubUrl: string;
   /** Public, HTTP-referrer-restricted Google Maps browser key. Empty disables map rendering. */
@@ -74,9 +84,10 @@ export const VEXTO_CONFIG = new InjectionToken<VextoRuntimeConfig>('VEXTO_CONFIG
 
 const defaults: VextoRuntimeConfig = {
   apiBaseUrl: 'https://localhost:7154',
+  operatorPortalUrl: 'http://localhost:4200',
   environmentName: '',
   trackingHubUrl: 'https://localhost:7154/hubs/tracking',
-  googleMapsApiKey: '',
+  googleMapsApiKey: 'AIzaSyDMnEZGBg0HCPZkWjgezB2FJ5J9UCEqzb0',
   driverLocationIntervalSeconds: 5,
   staleLocationAfterSeconds: 45,
   firebase: {

@@ -26,6 +26,9 @@ export const VextoPermissions = {
   /* Money that has already moved: the payment list, and refunds. */
   Payments: { View: 'Payments.View', Manage: 'Payments.Manage' },
   Reports: { View: 'Reports.View' },
+
+  /* Platform content: email and report templates. Granted to ServiceAdmin only; the CMS app's whole surface. */
+  Content: { View: 'Content.View', Manage: 'Content.Manage' },
 } as const;
 
 @Injectable({ providedIn: 'root' })

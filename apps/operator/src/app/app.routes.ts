@@ -89,6 +89,13 @@ export const routes: Routes = [
               import('./features/platform/tenant-wizard.page').then((m) => m.TenantWizardPage),
             title: 'Onboard an operator · Vexto',
           },
+          {
+            // The CMS hands a ServiceAdmin across here with a tenant id; see SupportEnterPage.
+            path: 'support/:tenantId',
+            loadComponent: () =>
+              import('./features/platform/support-enter.page').then((m) => m.SupportEnterPage),
+            title: 'Entering tenant · Vexto',
+          },
         ],
       },
       {

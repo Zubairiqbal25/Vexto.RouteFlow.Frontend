@@ -6,11 +6,11 @@
     "start:operator": "ng serve operator",
     "start:driver": "ng serve driver",
     "start:passenger": "ng serve passenger",
-    "build": "ng build operator && ng build driver && ng build passenger",
+    "build": "ng build operator && ng build driver && ng build passenger && ng build cms",
     "build:operator": "ng build operator",
     "build:driver": "ng build driver",
     "build:passenger": "ng build passenger",
-    "test": "ng test operator && ng test driver && ng test passenger",
+    "test": "ng test operator && ng test driver && ng test passenger && ng test cms",
     "lint": "eslint .",
     "brand:generate": "node tools/brand/generate.mjs",
     "brand:verify": "node tools/brand/verify.mjs",
@@ -18,7 +18,10 @@
     "api:sync": "node tools/api/sync-openapi.mjs",
     "api:generate": "npx -y openapi-typescript@7 ../Backend/docs/api/openapi-v1.json -o libs/models/src/lib/generated/vexto-api.ts",
     "e2e": "playwright test",
-    "e2e:visual": "playwright test --config playwright.visual.config.ts"
+    "e2e:visual": "playwright test --config playwright.visual.config.ts",
+    "start:cms": "ng serve cms",
+    "build:cms": "ng build cms",
+    "test:cms": "ng test cms"
   },
   "dependencies": {
     "@angular/cdk": "^22.0.0",

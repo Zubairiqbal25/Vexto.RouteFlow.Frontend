@@ -72,9 +72,13 @@ import { VxTenantSelector } from './vx-tenant-selector';
 
       <div class="ms-auto flex items-center gap-1.5">
         <vx-environment-badge />
-        <vx-tenant-selector />
+        @if (tenantSelector()) {
+          <vx-tenant-selector />
+        }
         <vx-theme-toggle />
-        <vx-notification-bell />
+        @if (notifications()) {
+          <vx-notification-bell />
+        }
 
         <div class="relative">
           <button
@@ -115,14 +119,16 @@ import { VxTenantSelector } from './vx-tenant-selector';
                 }
               </div>
 
-              <a
-                role="menuitem"
-                routerLink="/settings"
-                class="flex w-full items-center gap-2.5 px-4 py-2.5 text-start text-body text-ink-secondary hover:bg-surface-hover"
-              >
-                <vx-icon name="settings" [size]="16" />
-                Settings
-              </a>
+              @if (settingsLink(); as link) {
+                <a
+                  role="menuitem"
+                  [routerLink]="link"
+                  class="flex w-full items-center gap-2.5 px-4 py-2.5 text-start text-body text-ink-secondary hover:bg-surface-hover"
+                >
+                  <vx-icon name="settings" [size]="16" />
+                  Settings
+                </a>
+              }
 
               <button
                 type="button"
@@ -150,6 +156,18 @@ export class VxTopbar {
 
   /** Unused today; kept so a page can push a context title into the bar without a new component. */
   readonly contextTitle = input<string | null>(null);
+
+  /**
+   * Whether the tenant support-context selector is offered. The operator portal shows it; the CMS
+   * hides it, because platform content has no tenant to enter.
+   */
+  readonly tenantSelector = input(true);
+
+  /** Whether the notification bell is shown. Off in the CMS: platform content raises no notifications. */
+  readonly notifications = input(true);
+
+  /** Where the account menu's Settings item goes; null hides it (the CMS has no settings page). */
+  readonly settingsLink = input<string | null>('/settings');
 
   protected menuOpen = false;
 

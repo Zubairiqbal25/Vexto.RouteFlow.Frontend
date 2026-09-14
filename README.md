@@ -29,7 +29,7 @@ Change it there rather than rebuilding.
 {
   "apiBaseUrl": "https://localhost:7154",
   "trackingHubUrl": "https://localhost:7154/hubs/tracking",
-  "googleMapsApiKey": "",
+  "googleMapsApiKey": "AIzaSyDMnEZGBg0HCPZkWjgezB2FJ5J9UCEqzb0",
   "driverLocationIntervalSeconds": 5,
   "staleLocationAfterSeconds": 45
 }

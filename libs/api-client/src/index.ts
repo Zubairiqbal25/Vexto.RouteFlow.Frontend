@@ -6,3 +6,4 @@ export * from './lib/billing-apis';
 export * from './lib/platform-apis';
 export * from './lib/photo-source';
 export * from './lib/file-download';
+export * from './lib/content-apis';

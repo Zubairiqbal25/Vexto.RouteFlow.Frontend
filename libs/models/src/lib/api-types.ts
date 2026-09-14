@@ -55,6 +55,22 @@ export type TenantBusinessDetails = Schema<'TenantBusinessDetailsPayload'>;
 export type CreateTenantCommand = Schema<'CreateTenantCommand'>;
 export type CreateTenantResult = Schema<'CreateTenantResult'>;
 export type UpdateTenantCommand = Schema<'UpdateTenantCommand'>;
+export type CreateTenantOwnerCommand = Schema<'CreateTenantOwnerCommand'>;
+export type TenantMembershipSummary = Schema<'TenantMembershipSummaryResponse'>;
+
+/* CMS tenant onboarding ----------------------------------------------------------------------- */
+/** Tenant, settings, plan and first administrator in one request; see docs/tenant-onboarding.md. */
+export type TenantOnboardingCommand = Schema<'TenantOnboardingCommand'>;
+export type TenantOnboardingResult = Schema<'TenantOnboardingResult'>;
+export type TenantSummary = Schema<'TenantSummaryResponse'>;
+export type RecentTenant = Schema<'RecentTenantResponse'>;
+export type TenantSettingsCatalogue = Schema<'TenantSettingsCatalogueResponse'>;
+export type TenantAdministrator = Schema<'TenantAdministratorResponse'>;
+export type TenantAdministratorInvitation = Schema<'TenantAdministratorInvitationResponse'>;
+export type InviteTenantAdministratorCommand = Schema<'InviteTenantAdministratorCommand'>;
+export type SubscriptionPlan = Schema<'SubscriptionPlanResponse'>;
+export type AssignTenantPlanCommand = Schema<'AssignTenantPlanCommand'>;
+export type AssignedPlan = Schema<'AssignedPlanResponse'>;
 
 /**
  * A passenger's transport access as the operator sees it — the state plus the figures behind it.
@@ -297,3 +313,36 @@ export type RefundRequest = Schema<'RefundRequestBody'>;
 /* What the transport operator owes Vexto. The other kind of billing entirely. */
 export type TenantSubscription = Schema<'TenantSubscriptionResponse'>;
 export type PlanUsage = Schema<'PlanUsage'>;
+
+/* Platform content (CMS) ---------------------------------------------------------------------- */
+/**
+ * Email and report templates, managed by ServiceAdmin in the CMS app. Platform-global: no tenant
+ * anywhere in these shapes, and none will be added until tenant branding is a milestone.
+ */
+export type TemplateVariable = Schema<'TemplateVariablePayload'>;
+export type TemplateVariableKind = Schema<'TemplateVariableKind'>;
+export type TemplateStatus = Schema<'TemplateStatus'>;
+export type EmailTemplateCategory = Schema<'EmailTemplateCategory'>;
+export type EmailTemplateSummary = Schema<'EmailTemplateSummaryResponse'>;
+export type EmailTemplateDetail = Schema<'EmailTemplateDetailResponse'>;
+export type EmailTemplateVersion = Schema<'EmailTemplateVersionResponse'>;
+export type CreateEmailTemplateCommand = Schema<'CreateEmailTemplateCommand'>;
+export type UpdateEmailTemplateCommand = Schema<'UpdateEmailTemplateCommand'>;
+export type PublishTemplateCommand = Schema<'PublishEmailTemplateCommand'>;
+export type PreviewEmailTemplateCommand = Schema<'PreviewEmailTemplateCommand'>;
+export type EmailPreview = Schema<'EmailPreviewResponse'>;
+export type SendTestEmailCommand = Schema<'SendTestEmailCommand'>;
+export type SendTestEmailResult = Schema<'SendTestEmailResponse'>;
+export type EmailLayout = Schema<'EmailLayoutResponse'>;
+export type UpdateEmailLayoutCommand = Schema<'UpdateEmailLayoutCommand'>;
+export type ReportTemplateCategory = Schema<'ReportTemplateCategory'>;
+export type ReportTemplateType = Schema<'ReportTemplateType'>;
+export type ReportTemplateSummary = Schema<'ReportTemplateSummaryResponse'>;
+export type ReportTemplateDetail = Schema<'ReportTemplateDetailResponse'>;
+export type ReportTemplateVersion = Schema<'ReportTemplateVersionResponse'>;
+export type CreateReportTemplateCommand = Schema<'CreateReportTemplateCommand'>;
+export type UpdateReportTemplateCommand = Schema<'UpdateReportTemplateCommand'>;
+export type PreviewReportTemplateCommand = Schema<'PreviewReportTemplateCommand'>;
+export type ReportPreview = Schema<'ReportPreviewResponse'>;
+export type ContentSummary = Schema<'ContentSummaryResponse'>;
+export type RecentTemplateChange = Schema<'RecentTemplateChange'>;

@@ -66,6 +66,9 @@ const COLLAPSE_KEY = 'vexto.sidebarCollapsed';
         <vx-support-banner />
 
         <vx-topbar
+          [tenantSelector]="tenantSelector()"
+          [notifications]="notifications()"
+          [settingsLink]="settingsLink()"
           (menuToggled)="mobileOpen.set(!mobileOpen())"
           (paletteRequested)="palette.toggle()"
         />
@@ -85,6 +88,15 @@ export class VxAdminShell {
   private readonly document = inject(DOCUMENT);
 
   readonly sections = input.required<readonly NavSection[]>();
+
+  /** Passed through to the top bar. See VxTopbar.tenantSelector. */
+  readonly tenantSelector = input(true);
+
+  /** Passed through to the top bar. See VxTopbar.notifications. */
+  readonly notifications = input(true);
+
+  /** Passed through to the top bar. See VxTopbar.settingsLink. */
+  readonly settingsLink = input<string | null>('/settings');
 
   protected readonly collapsed = signal(this.readCollapsed());
   protected readonly mobileOpen = signal(false);

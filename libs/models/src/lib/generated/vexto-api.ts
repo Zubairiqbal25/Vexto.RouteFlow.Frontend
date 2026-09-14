@@ -4161,6 +4161,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/platform/content/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Counts of templates by kind and state, and the most recent changes. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ContentSummaryResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/diagnostics": {
         parameters: {
             query?: never;
@@ -4197,6 +4233,970 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/platform/email-layout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads the platform email layout every template is rendered inside. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailLayoutResponse"];
+                    };
+                };
+            };
+        };
+        /** Replaces the platform email layout. Takes effect on the next send. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateEmailLayoutCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailLayoutResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/email-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists platform email templates, with search and filters. */
+        get: {
+            parameters: {
+                query?: {
+                    search?: string;
+                    category?: string;
+                    status?: string;
+                    pageNumber?: number | string;
+                    pageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PagedResultOfEmailTemplateSummaryResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Creates an email template as a draft. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateEmailTemplateCommand"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/email-templates/by-code/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one email template by its stable code. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/email-templates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one email template with its working copy. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        /** Saves the working copy of an email template. Production is unaffected until it is published. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateEmailTemplateCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/email-templates/{id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Puts a deactivated template back into use on its last published version. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/email-templates/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retires a non-system template. History is kept; nothing is deleted. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/email-templates/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Takes an active template out of use. Production sends of it fail visibly. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/email-templates/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renders the template with sample values inside the platform layout. Sends nothing. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["PreviewEmailTemplateCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailPreviewResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/email-templates/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publishes the working copy as a new version and makes the template active. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["PublishEmailTemplateCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/email-templates/{id}/send-test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends the template to one address through the configured mail provider. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SendTestEmailCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SendTestEmailResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/email-templates/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists every published version, newest first, content included. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailTemplateVersionResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/report-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists platform report templates, with search and filters. */
+        get: {
+            parameters: {
+                query?: {
+                    search?: string;
+                    category?: string;
+                    status?: string;
+                    pageNumber?: number | string;
+                    pageSize?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PagedResultOfReportTemplateSummaryResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Creates a report template as a draft. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateReportTemplateCommand"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/report-templates/by-code/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one report template by its stable code. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/report-templates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reads one report template with its working copy. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        /** Saves the working copy of a report template. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateReportTemplateCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/report-templates/{id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Puts a deactivated report template back into use. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/report-templates/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retires a non-system report template. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/report-templates/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Takes an active report template out of use. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/report-templates/{id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renders the report with sample values as one HTML document. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["PreviewReportTemplateCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportPreviewResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/report-templates/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publishes the working copy as a new immutable version. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": null | components["schemas"]["PublishReportTemplateCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportTemplateDetailResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/report-templates/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists every published version, newest first. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReportTemplateVersionResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/subscription-plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Vexto plans an operator can be put on. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SubscriptionPlanResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/tenants": {
         parameters: {
             query?: never;
@@ -4210,6 +5210,7 @@ export interface paths {
                 query?: {
                     search?: string;
                     status?: string;
+                    emirate?: string;
                     pageNumber?: number | string;
                     pageSize?: number | string;
                 };
@@ -4271,6 +5272,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/platform/tenants/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates a transport operator with its settings, plan and first administrator in one transaction, then sends the administrator's invitation. Platform administrators only. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TenantOnboardingCommand"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantOnboardingResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/tenants/picker": {
         parameters: {
             query?: never;
@@ -4298,6 +5339,78 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["TenantPickerOption"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/tenants/settings-catalogue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The platform defaults a new operator starts with, and the values a settings screen may offer. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantSettingsCatalogueResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/tenants/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tenant counts by status, pending invitations and recent onboarding, for the CMS dashboard. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantSummaryResponse"];
                     };
                 };
             };
@@ -4412,7 +5525,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/platform/tenants/{tenantId}/subscription": {
+    "/api/v1/platform/tenants/{tenantId}/administrators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists the operator's administrators with their account and invitation status. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantAdministratorResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/tenants/{tenantId}/administrators/invite": {
         parameters: {
             query?: never;
             header?: never;
@@ -4420,6 +5571,363 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        put?: never;
+        /** Invites a TenantOwner or TenantAdmin. The invitation email uses the Auth.Invitation template. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InviteTenantAdministratorCommand"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantAdministratorInvitationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/tenants/{tenantId}/administrators/{userId}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reactivates a suspended administrator. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantAdministratorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/tenants/{tenantId}/administrators/{userId}/resend-invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issues a fresh invitation link and sends it again. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantAdministratorInvitationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/tenants/{tenantId}/administrators/{userId}/revoke-invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraws the administrator's outstanding invitation. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantAdministratorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/tenants/{tenantId}/administrators/{userId}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suspends the administrator's account and membership. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                    userId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantAdministratorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/tenants/{tenantId}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the operator's logo. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        /** Uploads or replaces the operator's logo (JPEG, PNG or WebP, 5 MB). */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": {
+                        file?: components["schemas"]["IFormFile"];
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        /** Removes the operator's logo. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantResponse"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/tenants/{tenantId}/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replaces a transport operator's settings on their behalf. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateTenantSettingsCommand"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantSettingsResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/tenants/{tenantId}/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The operator's current Vexto plan and usage, as the platform sees it. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TenantSubscriptionResponse"];
+                    };
+                };
+            };
+        };
         put?: never;
         /** Puts a transport operator on a Vexto plan, or moves them to a different one. Platform administrators only. */
         post: {
@@ -6942,6 +8450,19 @@ export interface components {
             /** Format: uuid */
             vehicleId: string;
         };
+        ContentSummaryResponse: {
+            /** Format: int32 */
+            emailTemplates: number | string;
+            /** Format: int32 */
+            activeEmailTemplates: number | string;
+            /** Format: int32 */
+            reportTemplates: number | string;
+            /** Format: int32 */
+            draftTemplates: number | string;
+            /** Format: int32 */
+            templatesWithUnpublishedChanges: number | string;
+            recentChanges: components["schemas"]["RecentTemplateChange"][];
+        };
         CreateAgreementCommand: {
             agreementNumber: string;
             title: string;
@@ -6966,6 +8487,17 @@ export interface components {
         };
         CreateDriverUserRequest: {
             email: string;
+        };
+        CreateEmailTemplateCommand: {
+            code: string;
+            name: string;
+            description: null | string;
+            category: components["schemas"]["EmailTemplateCategory"];
+            language: null | string;
+            subjectTemplate: string;
+            htmlBodyTemplate: string;
+            textBodyTemplate: string;
+            variables: null | components["schemas"]["TemplateVariablePayload"][];
         };
         CreatePassengerCommand: {
             firstName: string;
@@ -6997,6 +8529,19 @@ export interface components {
         CreatePassengerUserRequest: {
             email: string;
         };
+        CreateReportTemplateCommand: {
+            code: string;
+            name: string;
+            description: null | string;
+            category: components["schemas"]["ReportTemplateCategory"];
+            templateType: components["schemas"]["ReportTemplateType"];
+            language: null | string;
+            contentTemplate: string;
+            headerTemplate: null | string;
+            footerTemplate: null | string;
+            cssTemplate: null | string;
+            variables: null | components["schemas"]["TemplateVariablePayload"][];
+        };
         CreateRouteCommand: {
             code: string;
             name: string;
@@ -7019,6 +8564,7 @@ export interface components {
             owner: null | components["schemas"]["CreateTenantOwnerCommand"];
             /** @default false */
             activateImmediately: boolean;
+            settings?: null | components["schemas"]["UpdateTenantSettingsCommand"];
         };
         CreateTenantOwnerCommand: {
             email: string;
@@ -7027,6 +8573,7 @@ export interface components {
             phoneNumber: null | string;
             /** @default true */
             invite: boolean;
+            role?: null | string;
             shouldInvite?: boolean;
         };
         CreateTenantResult: {
@@ -7036,6 +8583,7 @@ export interface components {
             /** Format: date-time */
             ownerInvitationExpiresAtUtc: null | string;
             ownerInvitationAcceptUrl: null | string;
+            ownerInvitationDelivery: null | string;
         };
         CreateUserCommand: {
             email: string;
@@ -7251,6 +8799,18 @@ export interface components {
             userId: string;
             email: string;
         };
+        EmailLayoutResponse: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name: string;
+            htmlTemplate: string;
+            textTemplate: string;
+            /** Format: date-time */
+            updatedAtUtc: null | string;
+            /** Format: uuid */
+            updatedBy: null | string;
+        };
         EmailOtpRequestResponse: {
             message: string;
             /** Format: int32 */
@@ -7259,6 +8819,82 @@ export interface components {
             expiresInMinutes: number | string;
             /** Format: int32 */
             resendCooldownSeconds: number | string;
+        };
+        EmailPreviewResponse: {
+            subject: string;
+            html: string;
+            text: string;
+            /** Format: int32 */
+            versionNumber: null | number | string;
+            variables: Record<string, never>;
+        };
+        /** @enum {unknown} */
+        EmailTemplateCategory: "Authentication" | "Account" | "Trip" | "Passenger" | "Driver" | "Billing" | "Payment" | "Notification" | "System";
+        EmailTemplateDetailResponse: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name: string;
+            description: null | string;
+            category: components["schemas"]["EmailTemplateCategory"];
+            status: components["schemas"]["TemplateStatus"];
+            language: string;
+            isSystem: boolean;
+            /** Format: int32 */
+            currentVersion: number | string;
+            hasUnpublishedChanges: boolean;
+            /** Format: date-time */
+            publishedAtUtc: null | string;
+            /** Format: uuid */
+            publishedBy: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: uuid */
+            createdBy: null | string;
+            /** Format: date-time */
+            updatedAtUtc: null | string;
+            /** Format: uuid */
+            updatedBy: null | string;
+            subjectTemplate: string;
+            htmlBodyTemplate: string;
+            textBodyTemplate: string;
+            variables: components["schemas"]["TemplateVariablePayload"][];
+        };
+        EmailTemplateSummaryResponse: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name: string;
+            description: null | string;
+            category: components["schemas"]["EmailTemplateCategory"];
+            status: components["schemas"]["TemplateStatus"];
+            language: string;
+            isSystem: boolean;
+            /** Format: int32 */
+            currentVersion: number | string;
+            hasUnpublishedChanges: boolean;
+            /** Format: date-time */
+            publishedAtUtc: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            updatedAtUtc: null | string;
+        };
+        EmailTemplateVersionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            versionNumber: number | string;
+            subject: string;
+            htmlBody: string;
+            textBody: string;
+            variables: components["schemas"]["TemplateVariablePayload"][];
+            notes: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: uuid */
+            createdBy: null | string;
+            isCurrent: boolean;
         };
         /** @enum {unknown} */
         Emirate: "AbuDhabi" | "Dubai" | "Sharjah" | "Ajman" | "UmmAlQuwain" | "RasAlKhaimah" | "Fujairah" | null;
@@ -7328,6 +8964,13 @@ export interface components {
         };
         InvitePassengerRequest: {
             email: string;
+        };
+        InviteTenantAdministratorCommand: {
+            email: string;
+            firstName: string;
+            lastName: string;
+            phoneNumber: null | string;
+            role: string;
         };
         InviteUserCommand: {
             email: string;
@@ -7443,6 +9086,17 @@ export interface components {
             /** Format: int32 */
             totalPages?: number | string;
         };
+        PagedResultOfEmailTemplateSummaryResponse: {
+            items: components["schemas"]["EmailTemplateSummaryResponse"][];
+            /** Format: int32 */
+            pageNumber: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: number | string;
+            /** Format: int32 */
+            totalPages?: number | string;
+        };
         PagedResultOfNotificationResponse: {
             items: components["schemas"]["NotificationResponse"][];
             /** Format: int32 */
@@ -7500,6 +9154,17 @@ export interface components {
         };
         PagedResultOfPaymentResponse: {
             items: components["schemas"]["PaymentResponse"][];
+            /** Format: int32 */
+            pageNumber: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: number | string;
+            /** Format: int32 */
+            totalPages?: number | string;
+        };
+        PagedResultOfReportTemplateSummaryResponse: {
+            items: components["schemas"]["ReportTemplateSummaryResponse"][];
             /** Format: int32 */
             pageNumber: number | string;
             /** Format: int32 */
@@ -7832,8 +9497,33 @@ export interface components {
         };
         /** @enum {unknown} */
         PlatformFeeType: "None" | "Fixed" | "Percentage";
+        PreviewEmailTemplateCommand: {
+            variables: null | Record<string, never>;
+            /** Format: int32 */
+            versionNumber: null | number | string;
+            subjectTemplate: null | string;
+            htmlBodyTemplate: null | string;
+            textBodyTemplate: null | string;
+            variableDefinitions: null | components["schemas"]["TemplateVariablePayload"][];
+        };
+        PreviewReportTemplateCommand: {
+            variables: null | Record<string, never>;
+            /** Format: int32 */
+            versionNumber: null | number | string;
+            contentTemplate: null | string;
+            headerTemplate: null | string;
+            footerTemplate: null | string;
+            cssTemplate: null | string;
+            variableDefinitions: null | components["schemas"]["TemplateVariablePayload"][];
+        };
         /** @enum {unknown} */
         ProcessingFeePayer: "Operator" | "Passenger";
+        PublishEmailTemplateCommand: {
+            notes: null | string;
+        };
+        PublishReportTemplateCommand: {
+            notes: null | string;
+        };
         PublishTripLocationRequest: {
             /** Format: double */
             latitude: number | string;
@@ -7857,6 +9547,28 @@ export interface components {
             /** Format: date-time */
             lastSeenAtUtc: string;
             isActive: boolean;
+        };
+        RecentTemplateChange: {
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            code: string;
+            name: string;
+            status: components["schemas"]["TemplateStatus"];
+            /** Format: int32 */
+            currentVersion: number | string;
+            /** Format: date-time */
+            changedAtUtc: string;
+        };
+        RecentTenantResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            status: string;
+            emirate: null | string;
+            hasLogo: boolean;
+            /** Format: date-time */
+            createdAtUtc: string;
         };
         RecordTripLocationResponse: {
             /** Format: uuid */
@@ -7892,6 +9604,86 @@ export interface components {
             deviceToken: string;
             platform: string;
             label: null | string;
+        };
+        ReportPreviewResponse: {
+            html: string;
+            /** Format: int32 */
+            versionNumber: null | number | string;
+            variables: Record<string, never>;
+        };
+        /** @enum {unknown} */
+        ReportTemplateCategory: "Billing" | "Trips" | "Passengers" | "Drivers" | "Operations" | "System";
+        ReportTemplateDetailResponse: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name: string;
+            description: null | string;
+            category: components["schemas"]["ReportTemplateCategory"];
+            templateType: components["schemas"]["ReportTemplateType"];
+            status: components["schemas"]["TemplateStatus"];
+            language: string;
+            isSystem: boolean;
+            /** Format: int32 */
+            currentVersion: number | string;
+            hasUnpublishedChanges: boolean;
+            /** Format: date-time */
+            publishedAtUtc: null | string;
+            /** Format: uuid */
+            publishedBy: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: uuid */
+            createdBy: null | string;
+            /** Format: date-time */
+            updatedAtUtc: null | string;
+            /** Format: uuid */
+            updatedBy: null | string;
+            contentTemplate: string;
+            headerTemplate: null | string;
+            footerTemplate: null | string;
+            cssTemplate: null | string;
+            variables: components["schemas"]["TemplateVariablePayload"][];
+        };
+        ReportTemplateSummaryResponse: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name: string;
+            description: null | string;
+            category: components["schemas"]["ReportTemplateCategory"];
+            templateType: components["schemas"]["ReportTemplateType"];
+            status: components["schemas"]["TemplateStatus"];
+            language: string;
+            isSystem: boolean;
+            /** Format: int32 */
+            currentVersion: number | string;
+            hasUnpublishedChanges: boolean;
+            /** Format: date-time */
+            publishedAtUtc: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            updatedAtUtc: null | string;
+        };
+        /** @enum {unknown} */
+        ReportTemplateType: "Html" | "PdfHtml";
+        ReportTemplateVersionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            versionNumber: number | string;
+            content: string;
+            header: null | string;
+            footer: null | string;
+            css: null | string;
+            variables: components["schemas"]["TemplateVariablePayload"][];
+            notes: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: uuid */
+            createdBy: null | string;
+            isCurrent: boolean;
         };
         RequestEmailOtpCommand: {
             email: string;
@@ -8048,8 +9840,75 @@ export interface components {
             /** Format: int32 */
             currentVehicleCapacity: null | number | string;
         };
+        SendTestEmailCommand: {
+            email: string;
+            variables: null | Record<string, never>;
+            /** Format: int32 */
+            versionNumber: null | number | string;
+        };
+        SendTestEmailResponse: {
+            sent: boolean;
+            message: string;
+            /** Format: int32 */
+            versionNumber: null | number | string;
+        };
+        SubscriptionPlanResponse: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            name: string;
+            description: null | string;
+            /** Format: double */
+            monthlyPrice: number | string;
+            currency: string;
+            /** Format: int32 */
+            includedVehicles: number | string;
+            /** Format: int32 */
+            includedPassengers: number | string;
+            /** Format: double */
+            extraPassengerPrice: number | string;
+            isActive: boolean;
+        };
         /** @enum {unknown} */
         SubscriptionStatus: "Trial" | "Active" | "PastDue" | "Cancelled" | "Expired" | null;
+        /** @enum {unknown} */
+        TemplateStatus: "Draft" | "Active" | "Inactive" | "Archived";
+        /** @enum {unknown} */
+        TemplateVariableKind: "Text" | "Number" | "Date" | "Boolean" | "Collection";
+        TemplateVariablePayload: {
+            name: string;
+            description: string;
+            required: boolean;
+            kind: components["schemas"]["TemplateVariableKind"];
+            sampleValue: null | string;
+        };
+        TenantAdministratorInvitationResponse: {
+            administrator: components["schemas"]["TenantAdministratorResponse"];
+            /** Format: uuid */
+            invitationId: string;
+            /** Format: date-time */
+            expiresAtUtc: string;
+            delivery: string;
+            acceptUrl: null | string;
+        };
+        TenantAdministratorResponse: {
+            /** Format: uuid */
+            userId: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            phoneNumber: null | string;
+            roles: string[];
+            accountStatus: string;
+            invitationStatus: string;
+            /** Format: date-time */
+            invitationExpiresAtUtc: null | string;
+            membershipStatus: string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            lastLoginAtUtc: null | string;
+        };
         TenantBusinessDetailsPayload: {
             addressLine1: null | string;
             addressLine2: null | string;
@@ -8071,6 +9930,25 @@ export interface components {
             code: string;
             severity: string;
             message: string;
+        };
+        TenantMembershipSummaryResponse: {
+            /** Format: int32 */
+            active: number | string;
+            /** Format: int32 */
+            invited: number | string;
+            /** Format: int32 */
+            suspended: number | string;
+            /** Format: int32 */
+            total?: number | string;
+        };
+        TenantOnboardingCommand: {
+            tenant: components["schemas"]["CreateTenantCommand"];
+            plan: null | components["schemas"]["AssignTenantPlanCommand"];
+        };
+        TenantOnboardingResult: {
+            tenant: components["schemas"]["CreateTenantResult"];
+            /** Format: uuid */
+            subscriptionId: null | string;
         };
         TenantPaymentSettingsResponse: {
             platformFeeType: components["schemas"]["PlatformFeeType"];
@@ -8103,8 +9981,15 @@ export interface components {
             hasLogo: boolean;
             status: string;
             health: components["schemas"]["TenantHealthIndicatorResponse"][];
+            members: null | components["schemas"]["TenantMembershipSummaryResponse"];
             /** Format: date-time */
             createdAtUtc: string;
+        };
+        TenantSettingsCatalogueResponse: {
+            defaults: components["schemas"]["TenantSettingsResponse"];
+            supportedCurrencies: string[];
+            supportedLanguages: string[];
+            supportedDateFormats: string[];
         };
         TenantSettingsResponse: {
             timeZone: string;
@@ -8136,6 +10021,21 @@ export interface components {
             price: null | number | string;
             currency: null | string;
             usage: components["schemas"]["PlanUsage"];
+        };
+        TenantSummaryResponse: {
+            /** Format: int32 */
+            totalTenants: number | string;
+            /** Format: int32 */
+            activeTenants: number | string;
+            /** Format: int32 */
+            pendingTenants: number | string;
+            /** Format: int32 */
+            suspendedTenants: number | string;
+            /** Format: int32 */
+            inactiveTenants: number | string;
+            /** Format: int32 */
+            pendingInvitations: number | string;
+            recentTenants: components["schemas"]["RecentTenantResponse"][];
         };
         TerminateAgreementRequest: {
             reason: null | string;
@@ -8332,6 +10232,20 @@ export interface components {
             licenseExpiryDate: string;
             notes: null | string;
         };
+        UpdateEmailLayoutCommand: {
+            htmlTemplate: string;
+            textTemplate: string;
+        };
+        UpdateEmailTemplateCommand: {
+            code: string;
+            name: string;
+            description: null | string;
+            category: components["schemas"]["EmailTemplateCategory"];
+            subjectTemplate: string;
+            htmlBodyTemplate: string;
+            textBodyTemplate: string;
+            variables: null | components["schemas"]["TemplateVariablePayload"][];
+        };
         UpdatePassengerAssignmentRequest: {
             /** Format: uuid */
             routeStopId: string;
@@ -8362,6 +10276,18 @@ export interface components {
             autoRenew: boolean;
             /** Format: int32 */
             billingDay: null | number | string;
+        };
+        UpdateReportTemplateCommand: {
+            code: string;
+            name: string;
+            description: null | string;
+            category: components["schemas"]["ReportTemplateCategory"];
+            templateType: components["schemas"]["ReportTemplateType"];
+            contentTemplate: string;
+            headerTemplate: null | string;
+            footerTemplate: null | string;
+            cssTemplate: null | string;
+            variables: null | components["schemas"]["TemplateVariablePayload"][];
         };
         UpdateRouteCommand: {
             /** Format: uuid */

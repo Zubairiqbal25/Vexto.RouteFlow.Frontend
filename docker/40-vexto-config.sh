@@ -37,6 +37,7 @@ esc() {
 cat > "$target" <<EOF
 {
   "apiBaseUrl": "$(esc "$api_base_url")",
+  "operatorPortalUrl": "$(esc "${VEXTO_OPERATOR_PORTAL_URL:-}")",
   "environmentName": "$(esc "${VEXTO_ENVIRONMENT_NAME:-}")",
   "trackingHubUrl": "$(esc "$tracking_hub_url")",
   "googleMapsApiKey": "$(esc "${VEXTO_GOOGLE_MAPS_BROWSER_KEY:-}")",

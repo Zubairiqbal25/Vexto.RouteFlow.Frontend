@@ -1,13 +1,14 @@
 # ---------------------------------------------------------------------------------------------
-# Vexto Angular apps — one Dockerfile for all three, selected with APP.
+# Vexto Angular apps — one Dockerfile for all four, selected with APP.
 #
-# Build context is the frontend/ directory (the Angular workspace). All three apps share one
+# Build context is the frontend/ directory (the Angular workspace). All four apps share one
 # package.json, one node_modules and the libs/ folder, so the only thing that differs between the
 # images is which project `ng build` is given.
 #
 #   docker build -f Dockerfile --build-arg APP=operator  -t vexto-operator-web .   (from frontend/)
 #   docker build -f Dockerfile --build-arg APP=driver    -t vexto-driver-web .
 #   docker build -f Dockerfile --build-arg APP=passenger -t vexto-passenger-web .
+#   docker build -f Dockerfile --build-arg APP=cms       -t vexto-cms-web .
 #
 # The API address is NOT baked into the bundle. The apps read public/config.json at start-up
 # (libs/utilities/src/lib/runtime-config.ts), and docker/40-vexto-config.sh writes that file from
@@ -21,7 +22,7 @@ ARG APP
 ARG NG_CONFIGURATION=production
 
 # `ng build` refuses to run without an APP; fail here, before npm ci spends two minutes.
-RUN test -n "$APP" || (echo "Build argument APP is required (operator, driver or passenger)." && exit 1)
+RUN test -n "$APP" || (echo "Build argument APP is required (operator, driver, passenger or cms)." && exit 1)
 
 WORKDIR /workspace
 

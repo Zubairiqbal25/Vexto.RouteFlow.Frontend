@@ -13,6 +13,7 @@ import { defineConfig, devices } from '@playwright/test';
 const OPERATOR_URL = process.env['VEXTO_OPERATOR_URL'] ?? 'http://localhost:4200';
 const DRIVER_URL = process.env['VEXTO_DRIVER_URL'] ?? 'http://localhost:4201';
 const PASSENGER_URL = process.env['VEXTO_PASSENGER_URL'] ?? 'http://localhost:4202';
+const CMS_URL = process.env['VEXTO_CMS_URL'] ?? 'http://localhost:4203';
 
 /**
  * The suffix that makes this run's records its own, fixed here rather than in the fixtures.
@@ -133,6 +134,24 @@ export default defineConfig({
       dependencies: ['billing-reconcile'],
       use: { ...devices['Desktop Chrome'], baseURL: OPERATOR_URL },
     },
+
+    // Platform content, last: it publishes a change to the sign-in code template and restores it,
+    // and every sign-in above it should see the seeded wording.
+    {
+      name: 'cms',
+      testMatch: /cms.spec.ts/u,
+      dependencies: ['theme'],
+      use: { ...devices['Desktop Chrome'], baseURL: CMS_URL },
+    },
+
+    // Tenant onboarding from the CMS, across the CMS and the operator portal: creates a tenant,
+    // invites its owner, signs the owner in by code, and enters the support context.
+    {
+      name: 'cms-tenants',
+      testMatch: /cms.tenants.spec.ts/u,
+      dependencies: ['cms'],
+      use: { ...devices['Desktop Chrome'], baseURL: CMS_URL },
+    },
   ],
 
   webServer: [
@@ -151,6 +170,12 @@ export default defineConfig({
     {
       command: 'npm run start:passenger',
       url: PASSENGER_URL,
+      reuseExistingServer: !process.env['CI'],
+      timeout: 180_000,
+    },
+    {
+      command: 'npm run start:cms',
+      url: CMS_URL,
       reuseExistingServer: !process.env['CI'],
       timeout: 180_000,
     },
